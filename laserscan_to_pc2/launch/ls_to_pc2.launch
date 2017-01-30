@@ -1,0 +1,13 @@
+<launch>
+
+    <!-- Instantiate your teleoperation node here -->
+
+  <node pkg="laserscan_to_pc2" type="laserscan_to_pc2" name="lstopc2" output="screen">
+      launch-prefix="xterm -e gdb --args"
+      <param name="base_frame" value="/base_link" />
+
+      <remap from="~laser" to="/scan"/>
+      <remap from="~scan" to="/scanpc"/>
+  </node>
+
+</launch>

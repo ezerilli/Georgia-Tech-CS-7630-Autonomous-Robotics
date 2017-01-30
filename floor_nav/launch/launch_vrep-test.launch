@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<launch>
+    <include file="$(find vrep_ros_teleop)/launch/teleop_mux.launch"/>
+    <node name="task_server" pkg="floor_nav" type="task_server" output="screen" >
+        <!-- After install -->
+        <!-- <param name="lib_path" value="$(find floor_nav)/tasks"/> -->
+        <!-- While developing -->
+        <param name="lib_path" value="$(find floor_nav)/../../devel/share/floor_nav/tasks"/>
+        <param name="body_name" value="/bubbleRob"/>
+    </node>
+    <node name="viz_graph" pkg="floor_graph" type="viz_graph-test.py" output="screen">
+    </node>
+</launch>
