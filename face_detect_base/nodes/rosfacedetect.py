@@ -29,7 +29,7 @@ display = True
 
 if __name__ == '__main__':
     opencv_dir = '/usr/share/opencv/haarcascades/';
-    my_msg = roiVect()
+    
 
     face_cascade = cv2.CascadeClassifier(opencv_dir + 'haarcascade_frontalface_default.xml')
     if face_cascade.empty():
@@ -45,11 +45,12 @@ if __name__ == '__main__':
 
     def detect_and_draw(imgmsg):
         img = br.imgmsg_to_cv2(imgmsg, "bgr8")
+	my_msg = roiVect()
         # allocate temporary images
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 3)
-        currentROI=RegionOfInterest()        
-        for (x,y,w,h) in faces:		#it is a loop like "list of list"	
+        faces = face_cascade.detectMultiScale(gray, 1.3, 3)        
+        for (x,y,w,h) in faces:		#it is a loop like "list of list"
+	    currentROI=RegionOfInterest()	
             cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
             roi_gray = gray[y:y+h, x:x+w]
             roi_color = img[y:y+h, x:x+w]

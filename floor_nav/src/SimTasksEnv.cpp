@@ -20,6 +20,8 @@ SimTasksEnv::SimTasksEnv(ros::NodeHandle & n) : task_manager_lib::TaskEnvironmen
     pointCloud2DSub = nh.subscribe("/vrep/hokuyoSensor",1,&SimTasksEnv::pointCloud2DCallback,this);
     laserscanSub = nh.subscribe("/scan",1,&SimTasksEnv::laserScanCallback,this);
     velPub = nh.advertise<geometry_msgs::Twist>(auto_topic,1);
+    ROISub = nh.subscribe("/face_detect/ROI",1,&SimTasksEnv::ROICallback,this);
+    
 }
 
 void SimTasksEnv::setManualControl()
@@ -124,5 +126,11 @@ void SimTasksEnv::laserScanCallback(const sensor_msgs::LaserScanConstPtr msg) {
         pointCloud2D[i].x = msg->ranges[i]*cos(msg->angle_min + i*msg->angle_increment);
         pointCloud2D[i].y = msg->ranges[i]*sin(msg->angle_min + i*msg->angle_increment);
     }
+}
+
+
+void SimTasksEnv::ROICallback(const face_detect_base::roiVect msg) {
+	if(msg.ROI.size()>0)
+		ROIs.ROI=msg.ROI;
 }
 

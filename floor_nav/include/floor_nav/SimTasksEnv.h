@@ -9,10 +9,13 @@
 #include "geometry_msgs/Pose2D.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "sensor_msgs/LaserScan.h"
+#include "sensor_msgs/RegionOfInterest.h"
 #include "pcl_ros/point_cloud.h"
 #include "pcl/point_types.h"
 #include <tf/transform_listener.h>
 #include <tf/transform_datatypes.h>
+#include <face_detect_base/roiVect.h>
+
 
 namespace floor_nav {
     class SimTasksEnv: public task_manager_lib::TaskEnvironment
@@ -26,12 +29,14 @@ namespace floor_nav {
             ros::Publisher velPub;
             ros::ServiceClient muxClient;
             tf::TransformListener listener;
+            ros::Subscriber ROISub;
 
             void muxCallback(const std_msgs::String::ConstPtr& msg) ;
 
             void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr msg) ;
             void pointCloud2DCallback(const sensor_msgs::PointCloud2ConstPtr msg) ;
             void laserScanCallback(const sensor_msgs::LaserScanConstPtr msg) ;
+            void ROICallback(const face_detect_base::roiVect msg) ;
 
             bool manualControl;
             std::string joystick_topic;
@@ -40,6 +45,10 @@ namespace floor_nav {
             std::string reference_frame;
             pcl::PointCloud<pcl::PointXYZ> pointCloud;
             pcl::PointCloud<pcl::PointXYZ> pointCloud2D;
+            //face_detect_base::R ROIs
+            sensor_msgs::RegionOfInterest ROI;
+            face_detect_base::roiVect ROIs;
+            //sensor_msgs::RegionOfInterest ROI:
 
         public:
             SimTasksEnv(ros::NodeHandle & nh);
@@ -55,6 +64,10 @@ namespace floor_nav {
 
             const pcl::PointCloud<pcl::PointXYZ>& getPointCloud() const {return pointCloud;}
             const pcl::PointCloud<pcl::PointXYZ>& getPointCloud2D() const {return pointCloud2D;}
+            
+            face_detect_base::roiVect getROIs(){return ROIs;}
+            
+            //const sensor_msgs::RegionOfInterest
 
             void publishVelocity(double linear, double angular) ;
 

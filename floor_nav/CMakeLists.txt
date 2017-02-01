@@ -4,13 +4,15 @@ project(floor_nav)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS geometry_msgs pcl_ros roscpp rospy sensor_msgs std_msgs tf dynamic_reconfigure)
+find_package(catkin REQUIRED COMPONENTS geometry_msgs pcl_ros roscpp rospy sensor_msgs std_msgs tf dynamic_reconfigure face_detect_base)
 
 ## System dependencies are found with CMake's conventions
 find_package(task_manager_msgs REQUIRED)
 find_package(task_manager_lib REQUIRED)
 # find_package(task_manager_msgs REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -43,6 +45,8 @@ generate_dynamic_reconfigure_options(
   cfg/TaskWaitForAuto.cfg
   cfg/TaskWaitForROI.cfg
   cfg/TaskWander.cfg
+  cfg/TaskStareAtFace.cfg
+  cfg/TaskWaitForFace.cfg
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -63,7 +67,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES floor_nav
-  CATKIN_DEPENDS geometry_msgs pcl_ros roscpp rospy sensor_msgs std_msgs task_manager_lib task_manager_msgs tf
+  CATKIN_DEPENDS geometry_msgs pcl_ros roscpp rospy sensor_msgs std_msgs task_manager_lib task_manager_msgs tf 
 #  DEPENDS system_lib
 )
 
@@ -130,7 +134,18 @@ ADD_LIBRARY( TaskWander SHARED tasks/TaskWander.cpp)
 TARGET_LINK_LIBRARIES(TaskWander ${catkin_LIBRARIES} dl)
 add_dependencies(TaskWander ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
+ADD_LIBRARY( TaskStareAtFace SHARED tasks/TaskStareAtFace.cpp)
+TARGET_LINK_LIBRARIES(TaskStareAtFace ${catkin_LIBRARIES} dl)
+add_dependencies(TaskStareAtFace ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
+ADD_LIBRARY( TaskWaitForFace SHARED tasks/TaskWaitForFace.cpp)
+TARGET_LINK_LIBRARIES(TaskWaitForFace ${catkin_LIBRARIES} dl)
+add_dependencies(TaskWaitForFace ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
+
+
+#add_dependencies(face_detect_base ${catkin_EXPORTED_TARGETS})
+#add_message_files(DIRECTORY msg FILES roiVect.msg)
 #############
 ## Install ##
 #############
