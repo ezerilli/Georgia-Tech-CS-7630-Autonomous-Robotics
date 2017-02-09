@@ -9,13 +9,6 @@ using namespace floor_nav;
 
 TaskIndicator TaskStareAtFace::initialise() 
 {
-    ROS_INFO("Setting heading to %.2f deg", cfg.target*180./M_PI);
-    if (cfg.relative) {
-        const geometry_msgs::Pose2D & tpose = env->getPose2D();
-        initial_heading = tpose.theta;
-    } else {
-        initial_heading = 0.0;
-    }
     return TaskStatus::TASK_INITIALISED;
 }
 
@@ -24,44 +17,32 @@ TaskIndicator TaskStareAtFace::iterate()
 	face_detect_base::roiVect ROIs = env->getROIs();
 	sensor_msgs::RegionOfInterest currROI;
 	
-	if(ROIs.ROI.size()>0 ){
-	//for(int i = 0; i< ROIs.ROI.size(); i++){
-		currROI=ROIs.ROI[0];
-		ROS_INFO("ROI STARE!");
-			//double delta = remainder(98-currROI.x_offset,2*M_PI);
-		double delta=-currROI.x_offset+(256-currROI.height)/2.;
+	if(ROIs.ROI.size()>0){
+		int biggest=0;
+		int biggest_width=ROIs.ROI[0].width;
+		for(int i = 0; i< ROIs.ROI.size(); i++){
+			currROI=ROIs.ROI[i];
+			if(currROI.width>biggest_width){
+				biggest_width=currROI.width;
+				biggest=i;
+			}
+		}
+		currROI=ROIs.ROI[biggest];
+		ROS_INFO("STARE at ROI!");
+		double delta = -(currROI.x_offset + currROI.width/2 - cfg.frame_width/2);
 		ROS_INFO("x ROI = %d ",currROI.x_offset);
 		ROS_INFO("delta = %.2f ", delta);
-		if(fabs(delta)<3)
+		
+		if(fabs(delta)<cfg.delta_threshold)
 			return TaskStatus::TASK_COMPLETED;	
-		/*double rot = cfg.k_theta*delta;
+		
+		double rot = cfg.k_theta*delta;
 		ROS_INFO("rot = %.2f ", rot);
 		if (rot > cfg.max_angular_velocity) rot = cfg.max_angular_velocity;
 		if (rot <-cfg.max_angular_velocity) rot =-cfg.max_angular_velocity;
 		env->publishVelocity(0.0, rot);
-		return TaskStatus::TASK_RUNNING;*/
-		if(delta<0)
-		 env->publishVelocity(0.0, +0.3);
-		else
-		 env->publishVelocity(0.0, -0.3);
-
-	//	}	
-	}else
-		return TaskStatus::TASK_COMPLETED;
-
-	
-
-	/*
-    const geometry_msgs::Pose2D & tpose = env->getPose2D();
-    double alpha = remainder(initial_heading+cfg.target-tpose.theta,2*M_PI);
-    if (fabs(alpha) < cfg.angle_threshold) {
-		return TaskStatus::TASK_COMPLETED;
-    }
-    double rot = cfg.k_theta*alpha;
-    if (rot > cfg.max_angular_velocity) rot = cfg.max_angular_velocity;
-    if (rot <-cfg.max_angular_velocity) rot =-cfg.max_angular_velocity;
-    env->publishVelocity(0.0, rot);
-	return TaskStatus::TASK_RUNNING;*/
+		return TaskStatus::TASK_RUNNING;		
+	}
 }
 
 TaskIndicator TaskStareAtFace::terminate()
