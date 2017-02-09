@@ -130,7 +130,6 @@ void SimTasksEnv::laserScanCallback(const sensor_msgs::LaserScanConstPtr msg) {
 
 
 void SimTasksEnv::ROICallback(const face_detect_base::roiVect msg) {
-	if(msg.ROI.size()>0)
-		ROIs.ROI=msg.ROI;
+	ROIs.ROI=msg.ROI;
 }
 

@@ -9,11 +9,16 @@ using namespace floor_nav;
 TaskIndicator TaskWaitForFace::iterate()
 {   
 	face_detect_base::roiVect ROIs = env->getROIs();
-	if(ROIs.ROI.size()>0){
-		ROS_INFO("ROI");
-		return TaskStatus::TASK_COMPLETED;
-	}else
-		ROS_INFO("NO ROI");
+	sensor_msgs::RegionOfInterest currROI;
+	if(ROIs.ROI.size()>0 ){
+		for(int i = 0; i< ROIs.ROI.size(); i++){
+			currROI=ROIs.ROI[i];
+			if(currROI.width>60 && currROI.height>60){
+				ROS_INFO("ROI detected");
+			    return TaskStatus::TASK_COMPLETED;
+			}	
+		}
+	}
 	
     /*const geometry_msgs::Pose2D & tpose = env->getPose2D();
     ROS_INFO("NO ROI");

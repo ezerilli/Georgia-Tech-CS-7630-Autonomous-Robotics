@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     def detect_and_draw(imgmsg):
         img = br.imgmsg_to_cv2(imgmsg, "bgr8")
-	my_msg = roiVect()
+		my_msg = roiVect()
         # allocate temporary images
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.3, 3)        
