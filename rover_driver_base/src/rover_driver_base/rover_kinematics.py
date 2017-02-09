@@ -40,7 +40,7 @@ class RoverKinematics:
 				# Insert here the steering and velocity of 
 				# each wheel in skid-steer mode
 				motors.steering[k] = 0
-				motors.drive[k] = twist.linear.x - twist.angular.z*drive_cfg[k].y
+				motors.drive[k] = (twist.linear.x - twist.angular.z*drive_cfg[k].y)/drive_cfg[k].radius
 		else:
 			for k in drive_cfg.keys():
 				# Insert here the steering and velocity of 
@@ -56,39 +56,41 @@ class RoverKinematics:
 					motors.steering[k] += pi
 					motors.drive[k] = -motors.drive[k]		
 		return motors
+		
+	
 
-	  def integrate_odometry(self, motor_state, drive_cfg):
-        # The first time, we need to initialise the state
-        if self.first_run:
-            self.motor_state.copy(motor_state)
-            self.first_run = False
-            return self.X
-        # Insert here your odometry code
-        #k=len(prefix)
-        A = [[0 for x in range(3)] for y in range(12)]
-        B = [[0 for x in range(1)] for y in range(12)]
-        h=0
-        for k in drive_cfg.keys():
-            A[2*h][0]=1
-            A[2*h][2]=-⁠drive_cfg[k].y
-            A[2*h+1][1]=1
-            A[2*h+1][2]=drive_cfg[k].x
-            B[2*h][0]=(motor_state.drive[k])*cos(motor_state.steering[k])
-            B[2*h+1][0]=(motor_state.drive[k])*sin(motor_state.steering[k])
-            h+=1
-
-
-
-        X = numpy.multiply.outer(pinv(A), B)
-        print "X "+ str(len(X))
-        delta_xg=
-        delta_yg=
-        delta_theta=
-        self.X[0,0] += 0.0
-        self.X[1,0] += 0.0
-        self.X[2,0] += 0.0
-        self.motor_state.copy(motor_state)
-        return self.X
+	def integrate_odometry(self, motor_state, drive_cfg):
+		# The first time, we need to initialise the state
+		if self.first_run:
+			self.motor_state.copy(motor_state)
+			self.first_run = False
+			return self.X
+		# Insert here your odometry code
+		def mod(x,y):
+			return (x+y/2)%y -y/2	
+		A = [[0 for x in range(3)] for y in range(12)]
+		B = [[0 for x in range(1)] for y in range(12)]
+		h=0
+		for k in drive_cfg.keys():
+			A[2*h][0]=1
+			A[2*h][2]=-drive_cfg[k].y
+			A[2*h+1][1]=1
+			A[2*h+1][2]=drive_cfg[k].x
+			s=mod(motor_state.drive[k]- self.motor_state.drive[k],2*pi)*drive_cfg[k].radius
+			beta=(motor_state.steering[k]+self.motor_state.steering[k])/2
+			B[2*h][0]=s*cos(beta)
+			B[2*h+1][0]=s*sin(beta)
+			h+=1
+		A=numpy.matrix(A)
+		B=numpy.matrix(B)
+		dX=pinv(A)*B
+		#dX = numpy.dot(pinv(A), B)
+		self.X[0,0] += dX[0,0]*cos(self.X[2,0]) - dX[1,0]*sin(self.X[2,0])
+		self.X[1,0] += dX[0,0]*sin(self.X[2,0]) + dX[1,0]*cos(self.X[2,0])
+		self.X[2,0] += dX[2,0]
+		print "X = "+ str(self.X)
+		self.motor_state.copy(motor_state)
+		return self.X
 
 
 
