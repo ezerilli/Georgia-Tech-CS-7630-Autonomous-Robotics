@@ -45,10 +45,8 @@ namespace floor_nav {
             std::string reference_frame;
             pcl::PointCloud<pcl::PointXYZ> pointCloud;
             pcl::PointCloud<pcl::PointXYZ> pointCloud2D;
-            //face_detect_base::R ROIs
             sensor_msgs::RegionOfInterest ROI;
             face_detect_base::roiVect ROIs;
-            //sensor_msgs::RegionOfInterest ROI:
 
         public:
             SimTasksEnv(ros::NodeHandle & nh);

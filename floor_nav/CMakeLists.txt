@@ -13,8 +13,6 @@ find_package(task_manager_lib REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 
 
-
-
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -39,14 +37,15 @@ find_package(Boost REQUIRED COMPONENTS system)
 # )
 generate_dynamic_reconfigure_options(
   cfg/TaskGoTo.cfg
+  cfg/TaskGoToPose.cfg
   cfg/TaskPlanTo.cfg
   cfg/TaskSetHeading.cfg
   cfg/TaskSetManual.cfg
+  cfg/TaskStareAtFace.cfg
   cfg/TaskWaitForAuto.cfg
   cfg/TaskWaitForROI.cfg
-  cfg/TaskWander.cfg
-  cfg/TaskStareAtFace.cfg
   cfg/TaskWaitForFace.cfg
+  cfg/TaskWander.cfg
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -114,6 +113,10 @@ ADD_LIBRARY( TaskGoTo SHARED tasks/TaskGoTo.cpp)
 TARGET_LINK_LIBRARIES(TaskGoTo ${catkin_LIBRARIES} dl)
 add_dependencies(TaskGoTo ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
+ADD_LIBRARY( TaskGoToPose SHARED tasks/TaskGoToPose.cpp)
+TARGET_LINK_LIBRARIES(TaskGoToPose ${catkin_LIBRARIES} dl)
+add_dependencies(TaskGoToPose ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
 ADD_LIBRARY( TaskPlanTo SHARED tasks/TaskPlanTo.cpp)
 TARGET_LINK_LIBRARIES(TaskPlanTo ${catkin_LIBRARIES} dl)
 add_dependencies(TaskPlanTo ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -126,22 +129,21 @@ ADD_LIBRARY( TaskSetManual SHARED tasks/TaskSetManual.cpp)
 TARGET_LINK_LIBRARIES(TaskSetManual ${catkin_LIBRARIES} dl)
 add_dependencies(TaskSetManual ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
-ADD_LIBRARY( TaskWaitForROI SHARED tasks/TaskWaitForROI.cpp)
-TARGET_LINK_LIBRARIES(TaskWaitForROI ${catkin_LIBRARIES} dl)
-add_dependencies(TaskWaitForROI ${${PROJECT_NAME}_EXPORTED_TARGETS})
-
-ADD_LIBRARY( TaskWander SHARED tasks/TaskWander.cpp)
-TARGET_LINK_LIBRARIES(TaskWander ${catkin_LIBRARIES} dl)
-add_dependencies(TaskWander ${${PROJECT_NAME}_EXPORTED_TARGETS})
-
 ADD_LIBRARY( TaskStareAtFace SHARED tasks/TaskStareAtFace.cpp)
 TARGET_LINK_LIBRARIES(TaskStareAtFace ${catkin_LIBRARIES} dl)
 add_dependencies(TaskStareAtFace ${${PROJECT_NAME}_EXPORTED_TARGETS})
+
+ADD_LIBRARY( TaskWaitForROI SHARED tasks/TaskWaitForROI.cpp)
+TARGET_LINK_LIBRARIES(TaskWaitForROI ${catkin_LIBRARIES} dl)
+add_dependencies(TaskWaitForROI ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 ADD_LIBRARY( TaskWaitForFace SHARED tasks/TaskWaitForFace.cpp)
 TARGET_LINK_LIBRARIES(TaskWaitForFace ${catkin_LIBRARIES} dl)
 add_dependencies(TaskWaitForFace ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
+ADD_LIBRARY( TaskWander SHARED tasks/TaskWander.cpp)
+TARGET_LINK_LIBRARIES(TaskWander ${catkin_LIBRARIES} dl)
+add_dependencies(TaskWander ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 
 #add_dependencies(face_detect_base ${catkin_EXPORTED_TARGETS})
