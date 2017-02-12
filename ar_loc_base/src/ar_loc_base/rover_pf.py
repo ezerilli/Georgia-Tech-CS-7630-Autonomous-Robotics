@@ -77,16 +77,41 @@ class RoverPF(RoverKinematics):
 		self.particles = new_part		
 		self.lock.release()
 
+
 	def update_ar(self, Z, L, Uncertainty):
 		self.lock.acquire()
 		print "Update: L="+str(L.T)
 		# Implement particle filter update using landmarks here
 		# Note: the function bisect.bisect_left could be useful to implement
 		# the resampling process efficiently
+		# Z is a 2x1 vector of the measurement in the rover reference
+		# frame. L is the position of the observed landmark in the world frame as a 2x1 vector. Uncertainty is the
+		# uncertainty on the measurement process, given as a direction-less radius.
 		# TODO
-
-		# self.particles = ...
 		
+		#weights=mat(len(self.particles),1)
+		#new_part=self.particles
+		#i=0
+		#for part in self.particles:
+			#theta = part[2,0]
+			#currPart=new_part[i]
+			#currPart[0,0] = part[0,0] + (Z[0,0])*cos(theta) - (Z[1,0])*sin(theta)
+			#currPart[1,0] = part[1,0] + (Z[0,0])*sin(theta) + (Z[1,0])*cos(theta)
+			#dist=max(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))/Uncertainty       #distance between the particle and the landmark
+	        	#weigths[i,0]=exp(-dist)  #form a weights vector.. the more the particle is near the landmark the bigger is the weight
+	        	#i+=1
+	     
+	        #norm_fact = sum(weights)
+	        #pdf = [weight/norm_fact for weight in weights]
+	        #cdf = cumsum(pdf)
+	        
+	        #samples = random.rand(len(self.particles))
+	        #indexes=[]
+	        #for sample in samples:
+	        	#index = bisect.bisect_left(cdf,sample)
+	        	#indexes=[indexes, index]
+	        
+	        #self.particles = [self.particles[i] for i in indexes]
 		self.lock.release()
 
 	def update_compass(self, angle, Uncertainty):
