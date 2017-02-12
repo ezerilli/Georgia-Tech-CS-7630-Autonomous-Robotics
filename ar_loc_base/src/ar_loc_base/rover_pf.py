@@ -66,8 +66,8 @@ class RoverPF(RoverKinematics):
 			
 			#noise=self.drawNoise(var)
 			#currPart=new_part[i]
-			#currPart[0,0] = dX[0,0]*cos(theta) - dX[1,0]*sin(theta) + noise[0,0]
-			#currPart[1,0] = dX[0,0]*sin(theta) + dX[1,0]*cos(theta) + noise[1,0]
+			#currPart[0,0] = (dX[0,0]+ noise[0,0])*cos(theta) - (dX[1,0]+ noise[1,0])*sin(theta)
+			#currPart[1,0] = (dX[0,0]+ noise[0,0])*sin(theta) + (dX[1,0]+ noise[1,0])*cos(theta)
 			#currPart[2,0] = dX[2,0] + noise[2,0]
 			#new_part[i] = part + currPart
 			
