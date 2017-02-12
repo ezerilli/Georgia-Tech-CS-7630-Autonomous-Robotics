@@ -51,8 +51,11 @@ class RoverPF(RoverKinematics):
 		# Apply the particle filter prediction step here
 		# TODO
 		dX = iW*S
-		var=mat(vstack([encoder_precision] * 3))
+		#var=mat(vstack([encoder_precision] * 3))
+		#think the encoder_precision like a S (displacement) vector in odometry, it will cause a deltaX,deltaY,deltaTheta in the robot frame
+		var=iW*mat(vstack([encoder_precision] * len(S)))	
 		
+		#now i apply the main displacement dX to each particles superimposing the variation caused by the encoder precision
 		new_part=self.particles
 		i=0
 		for part in self.particles:
@@ -60,7 +63,15 @@ class RoverPF(RoverKinematics):
 			convMat = mat([[cos(theta), -sin(theta), 0], 
 					  [sin(theta),  cos(theta), 0],
 					  [         0,           0, 1]]);
-			new_part[i]=(part + convMat*(dX + self.drawNoise(var)))
+			
+			#noise=self.drawNoise(var)
+			#currPart=new_part[i]
+			#currPart[0,0] = dX[0,0]*cos(theta) - dX[1,0]*sin(theta) + noise[0,0]
+			#currPart[1,0] = dX[0,0]*sin(theta) + dX[1,0]*cos(theta) + noise[1,0]
+			#currPart[2,0] = dX[2,0] + noise[2,0]
+			#new_part[i] = part + currPart
+			
+			new_part[i] = (part + convMat*(dX + self.drawNoise(var)))
 			i+=1			  
 		
 		self.particles = new_part		
