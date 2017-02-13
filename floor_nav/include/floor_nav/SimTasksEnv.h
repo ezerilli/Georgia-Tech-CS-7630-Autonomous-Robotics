@@ -67,7 +67,9 @@ namespace floor_nav {
             
             //const sensor_msgs::RegionOfInterest
 
-            void publishVelocity(double linear, double angular) ;
+            void publishVelocity(double linear, double angular);
+            void publishVelocity(double linear_x, double liear_y, double angular);
+
 
             void setManualControl();
             void setComputerControl();

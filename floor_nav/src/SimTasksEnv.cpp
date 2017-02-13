@@ -102,6 +102,21 @@ void SimTasksEnv::publishVelocity(double linear, double angular) {
     velPub.publish(cmd);
 }
 
+
+void SimTasksEnv::publishVelocity(double linear_x, double linear_y, double angular) {
+    geometry_msgs::Twist cmd;
+    if (paused) {
+        cmd.linear.x = 0.;
+        cmd.linear.y = 0.;
+        cmd.angular.z = 0.;
+    } else {
+        cmd.linear.x = linear_x;
+        cmd.linear.y = linear_y;
+        cmd.angular.z = angular;
+    }
+    velPub.publish(cmd);
+}
+
 void SimTasksEnv::muxCallback(const std_msgs::String::ConstPtr& msg) {
     if (msg->data == joystick_topic) {
         manualControl = true;
