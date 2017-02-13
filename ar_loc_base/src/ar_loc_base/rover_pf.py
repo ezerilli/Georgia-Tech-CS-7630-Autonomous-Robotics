@@ -58,8 +58,10 @@ class RoverPF(RoverKinematics):
 		#now i apply the main displacement dX to each particles superimposing the variation caused by the encoder precision
 		new_part=self.particles
 		i=0
+		deltaPart=mat(vstack([.0] *3))
 		for part in self.particles:
 			theta = part[2,0]
+<<<<<<< HEAD
 			#convMat = mat([[cos(theta), -sin(theta), 0], 
 					  #[sin(theta),  cos(theta), 0],
 					  #[         0,           0, 1]]);
@@ -72,6 +74,15 @@ class RoverPF(RoverKinematics):
 			new_part[i] = part + currPart
 			
 			#new_part[i] = (part + convMat*(dX + self.drawNoise(var)))
+=======
+		
+			noise=self.drawNoise(var)
+			deltaPart[0,0] = (dX[0,0]+ noise[0,0])*cos(theta) - (dX[1,0]+ noise[1,0])*sin(theta)
+			deltaPart[1,0] = (dX[0,0]+ noise[0,0])*sin(theta) + (dX[1,0]+ noise[1,0])*cos(theta)
+			deltaPart[2,0] = dX[2,0] + noise[2,0]
+			new_part[i] = (part + deltaPart)
+
+>>>>>>> 10bcd51ecc5d4d993365f043b4ebbb8cb76d14c0
 			i+=1			  
 		
 		self.particles = new_part		
@@ -89,29 +100,31 @@ class RoverPF(RoverKinematics):
 		# uncertainty on the measurement process, given as a direction-less radius.
 		# TODO
 		
-		#weights=mat(len(self.particles),1)
-		#new_part=self.particles
-		#i=0
-		#for part in self.particles:
-			#theta = part[2,0]
-			#currPart=new_part[i]
-			#currPart[0,0] = part[0,0] + (Z[0,0])*cos(theta) - (Z[1,0])*sin(theta)
-			#currPart[1,0] = part[1,0] + (Z[0,0])*sin(theta) + (Z[1,0])*cos(theta)
-			#dist=max(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))/Uncertainty       #distance between the particle and the landmark
-	        	#weigths[i,0]=exp(-dist)  #form a weights vector.. the more the particle is near the landmark the bigger is the weight
-	        	#i+=1
+		weights=mat(vstack([.0] * len(self.particles)))
+		new_part=self.particles
+		i=0
+		currPart=mat(vstack([.0] *3))
+		for part in self.particles:
+			theta = part[2,0]
+			
+			currPart[0,0] = part[0,0] + (Z[0,0])*cos(theta) - (Z[1,0])*sin(theta)
+			currPart[1,0] = part[1,0] + (Z[0,0])*sin(theta) + (Z[1,0])*cos(theta)
+			dist=max(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))/Uncertainty       #distance between the particle and the landmark
+			weights[i,0]=exp(-dist)  #form a weights vector.. the more the particle is near the landmark the bigger is the weight
+			i+=1
 	     
-	        #norm_fact = sum(weights)
-	        #pdf = [weight/norm_fact for weight in weights]
-	        #cdf = cumsum(pdf)
-	        
-	        #samples = random.rand(len(self.particles))
-	        #indexes=[]
-	        #for sample in samples:
-	        	#index = bisect.bisect_left(cdf,sample)
-	        	#indexes=[indexes, index]
-	        
-	        #self.particles = [self.particles[i] for i in indexes]
+		norm_fact = sum(weights)
+		pdf = [weight/norm_fact for weight in weights]
+		cdf = cumsum(pdf)
+		
+		samples = random.rand(len(self.particles))
+		indexes=[]
+		for sample in samples:
+			index = bisect.bisect_left(cdf,sample)
+			indexes.append(index)
+		
+		indexes=array(indexes)
+		self.particles = [self.particles[i] for i in indexes]
 		self.lock.release()
 
 	def update_compass(self, angle, Uncertainty):
