@@ -60,18 +60,18 @@ class RoverPF(RoverKinematics):
 		i=0
 		for part in self.particles:
 			theta = part[2,0]
-			convMat = mat([[cos(theta), -sin(theta), 0], 
-					  [sin(theta),  cos(theta), 0],
-					  [         0,           0, 1]]);
+			#convMat = mat([[cos(theta), -sin(theta), 0], 
+					  #[sin(theta),  cos(theta), 0],
+					  #[         0,           0, 1]]);
 			
-			#noise=self.drawNoise(var)
-			#currPart=new_part[i]
-			#currPart[0,0] = (dX[0,0]+ noise[0,0])*cos(theta) - (dX[1,0]+ noise[1,0])*sin(theta)
-			#currPart[1,0] = (dX[0,0]+ noise[0,0])*sin(theta) + (dX[1,0]+ noise[1,0])*cos(theta)
-			#currPart[2,0] = dX[2,0] + noise[2,0]
-			#new_part[i] = part + currPart
+			noise=self.drawNoise(var)
+			currPart=new_part[i]
+			currPart[0,0] = (dX[0,0]+ noise[0,0])*cos(theta) - (dX[1,0]+ noise[1,0])*sin(theta)
+			currPart[1,0] = (dX[0,0]+ noise[0,0])*sin(theta) + (dX[1,0]+ noise[1,0])*cos(theta)
+			currPart[2,0] = dX[2,0] + noise[2,0]
+			new_part[i] = part + currPart
 			
-			new_part[i] = (part + convMat*(dX + self.drawNoise(var)))
+			#new_part[i] = (part + convMat*(dX + self.drawNoise(var)))
 			i+=1			  
 		
 		self.particles = new_part		
