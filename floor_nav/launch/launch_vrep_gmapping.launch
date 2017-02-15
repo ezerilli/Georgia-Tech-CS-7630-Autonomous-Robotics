@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<launch>
+    <include file="$(find vrep_ros_teleop)/launch/teleop_mux.launch"/> 
+    
+    <node name="task_server" pkg="floor_nav" type="task_server" output="screen" >
+        <!-- After install -->
+        <!-- <param name="lib_path" value="$(find floor_nav)/tasks"/> -->
+        <!-- While developing -->
+        <param name="lib_path" value="$(find floor_nav)/../../devel/share/floor_nav/tasks"/>
+        <param name="base_frame" value="rosControlledBubbleRob"/>
+        <param name="reference_frame" value="world"/>
+        <!--<param name="base_frame" value="body"/>
+        <param name="reference_frame" value="map"/>-->
+    </node>
+    <!-- For the rosControlKinect scene
+    <node name="viz_graph" pkg="floor_graph" type="viz_graph.py" output="screen">
+    </node>
+    -->
+    
+    
+    <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name ="pointcloud_to_laserscan_node" output="screen">
+     
+     <remap from="cloud_in" to="/vrep/hokuyoSensor"/>
+    </node>
+    
+    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen" >
+
+        <!--<remap from /scan to scan> -->
+         
+        <param name="base_frame" value="rosControlledBubbleRob"/>
+        <param name="odom_frame" value="/world"/>
+
+    </node>
+	
+	
+
+
+</launch>
+

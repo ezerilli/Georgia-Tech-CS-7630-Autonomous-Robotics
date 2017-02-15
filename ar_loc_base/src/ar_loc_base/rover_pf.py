@@ -109,9 +109,10 @@ class RoverPF(RoverKinematics):
 			
 			currPart[0,0] = part[0,0] + (Z[0,0])*cos(theta) - (Z[1,0])*sin(theta)
 			currPart[1,0] = part[1,0] + (Z[0,0])*sin(theta) + (Z[1,0])*cos(theta)
-			dist=max(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))/Uncertainty       #distance between the particle and the landmark
-			#weights[i,0]=(1/sqrt(2*pi*pow(Uncertainty,2)))*exp(-pow(dist,2)/(2*pow(Uncertainty,2))) + 0.1  #form a weights vector.. the more the particle is near the landmark the bigger is the weight
-			weights[i,0]=exp(-dist)
+			#dist=max(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))/Uncertainty       #distance between the particle and the landmark
+			#weights[i,0]=exp(-pow(dist,2))	#form a weights vector.. the more the particle is near the landmark the bigger is the weight
+			dist=hypot(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))
+			weights[i,0]=(1/sqrt(2*pi*pow(Uncertainty,2)))*exp(-pow(dist,2)/(2*pow(Uncertainty,2))) + 0.01  
 			i+=1
 	     
 		norm_fact = sum(weights)
