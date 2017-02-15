@@ -52,9 +52,9 @@ class CollisionAvoidance {
              
              if(radius<radius_max && radius>radius_min){
 				res.linear.x = (radius-radius_min)/(radius_max-radius_min)*desired.linear.x;
-				ROS_INFO("Minimum radius is %.3f", radius);
+				//ROS_INFO("Minimum radius is %.3f", radius);
 			 } else if (radius<=radius_min && radius>0.0) {
-				ROS_INFO("Too close %.3f %.3f %.3f", x,y,radius);
+				//ROS_INFO("Too close %.3f %.3f %.3f", x,y,radius);
 				res.linear.x=0.0;
 			 }
 			 

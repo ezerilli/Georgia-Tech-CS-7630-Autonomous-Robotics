@@ -8,8 +8,8 @@
  <!-- Teloperation node -->
   <param name="axis_linear" value="1" type="int"/>
   <param name="axis_angular" value="0" type="int"/>
-  <param name="scale_linear" value="4" type="double"/>
-  <param name="scale_angular" value="5" type="double"/>
+  <param name="scale_linear" value="0.4" type="double"/>
+  <param name="scale_angular" value="1" type="double"/>
   <node pkg="learning_joy" type="robot_teleop_joy" name="teleop"/>
 
  <!-- Collision avoidance node -->
@@ -18,18 +18,33 @@
       <param name="radius_max" value="1.2"/>
       <param name="radius_min" value="0.5"/>
       <param name="alpha_max" value="20.0"/>
-      <remap from="~scans" to="/vrep/hokuyoSensor"/>
-      <remap from="~cmd_vel" to="cmd_vel"/>
-      <remap from="~output_vel" to="/vrep/twistCommand"/>
+      <remap from="~scans" to="/scanpc"/>
+      <remap from="~cmd_vel" to="/cmd_vel"/>
+      <remap from="~output_vel" to="/cmd_vel_mux/input/navi"/>
+  </node>
+
+ <!-- Laserscan node -->
+  <node pkg="laserscan_to_pc2" type="laserscan_to_pc2" name="lstopc2" output="screen">
+      launch-prefix="xterm -e gdb --args"
+      <param name="base_frame" value="/base_link" />
+      <remap from="~laser" to="/scan"/>
+      <remap from="~scan" to="/scanpc"/>
   </node>
   
+    
   <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name ="pointcloud_to_laserscan_node" output="screen">
 	<remap from="cloud_in" to="/vrep/hokuyoSensor"/>
   </node>
 
-  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen" >
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
 		<!--<remap from /scan to scan> -->
-		<param name="base_frame" value="rosControlledBubbleRob"/>
-		<param name="odom_frame" value="/world"/>
+		<param name="base_frame" value="base_link"/>
+		<param name="odom_frame" value="odom"/>
+  </node>
+  
+  <node pkg="kobuki" type="kobuki_path" name="kobuki_path">
+		<!--remap -->
+        <remap from="~odom" to="/odom"/>
+        <remap from="~path" to="/KobukyPath"/>
   </node>
 </launch>
