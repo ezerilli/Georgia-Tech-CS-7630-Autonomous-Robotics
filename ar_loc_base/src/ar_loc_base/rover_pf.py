@@ -51,23 +51,20 @@ class RoverPF(RoverKinematics):
 		# Apply the particle filter prediction step here
 		# TODO
 		dX = iW*S
-		#var=mat(vstack([encoder_precision] * 3))
-		#think the encoder_precision like a S (displacement) vector in odometry, it will cause a deltaX,deltaY,deltaTheta in the robot frame
+		#think the encoder_precision like a dS (displacement) vector in odometry, it will cause a deltaX,deltaY,deltaTheta in the robot frame
 		var=iW*mat(vstack([encoder_precision] * len(S)))	
 		
-		#now i apply the main displacement dX to each particles superimposing the variation caused by the encoder precision
+		#now apply the main displacement dX to each particles superposing the variation caused by the encoder precision
 		new_part=self.particles
 		i=0
 		deltaPart=mat(vstack([.0] *3))
 		for part in self.particles:
 			theta = part[2,0]
-		
 			noise=self.drawNoise(var)
 			deltaPart[0,0] = (dX[0,0]+ noise[0,0])*cos(theta) - (dX[1,0]+ noise[1,0])*sin(theta)
 			deltaPart[1,0] = (dX[0,0]+ noise[0,0])*sin(theta) + (dX[1,0]+ noise[1,0])*cos(theta)
 			deltaPart[2,0] = dX[2,0] + noise[2,0]
 			new_part[i] = (part + deltaPart)
-
 			i+=1			  
 		
 		self.particles = new_part		
@@ -80,9 +77,9 @@ class RoverPF(RoverKinematics):
 		# Implement particle filter update using landmarks here
 		# Note: the function bisect.bisect_left could be useful to implement
 		# the resampling process efficiently
-		# Z is a 2x1 vector of the measurement in the rover reference
-		# frame. L is the position of the observed landmark in the world frame as a 2x1 vector. Uncertainty is the
-		# uncertainty on the measurement process, given as a direction-less radius.
+		# Z is a 2x1 vector of the measurement in the rover reference frame.
+		# L is the position of the observed landmark in the world frame as a 2x1 vector. 
+		# Uncertainty is the uncertainty on the measurement process, given as a direction-less radius.
 		# TODO
 		
 		weights=mat(vstack([.0] * len(self.particles)))
@@ -90,20 +87,21 @@ class RoverPF(RoverKinematics):
 		i=0
 		currPart=mat(vstack([.0] *3))
 		for part in self.particles:
-			theta = part[2,0]
-			
-			currPart[0,0] = part[0,0] + (Z[0,0])*cos(theta) - (Z[1,0])*sin(theta)
-			currPart[1,0] = part[1,0] + (Z[0,0])*sin(theta) + (Z[1,0])*cos(theta)
-			#dist=max(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))/Uncertainty       #distance between the particle and the landmark
-			#weights[i,0]=exp(-pow(dist,2))	#form a weights vector.. the more the particle is near the landmark the bigger is the weight
-			dist=hypot(fabs(currPart[0,0]-L[0,0]),fabs(currPart[1,0]-L[1,0]))
-			weights[i,0]=(1/sqrt(2*pi*pow(Uncertainty,2)))*exp(-pow(dist,2)/(2*pow(Uncertainty,2))) + 0.01  
+			# calculating the supposed position of the landemark starting from the current particle position
+			rotZ= getRotation(part[2,0])*Z
+			currPart[0,0] = part[0,0] + rotZ[0,0]
+			currPart[1,0] = part[1,0] + rotZ[1,0]
+			#distance between the particle and the landmark
+			dist=hypot(currPart[0,0]-L[0,0],currPart[1,0]-L[1,0])
+			#form a weights vector, the nearer the particle is to the robot the bigger is the weight
+			weights[i,0]=1/(sqrt(2*pi)*Uncertainty)*exp(-pow(dist/Uncertainty,2)/2) + 0.01  
 			i+=1
 	     
+	    # normalizing the distribution 
 		norm_fact = sum(weights)
 		pdf = [weight/norm_fact for weight in weights]
+		# resampling thanks to the cdf
 		cdf = cumsum(pdf)
-		
 		samples = random.rand(len(self.particles))
 		indexes=[]
 		for sample in samples:
