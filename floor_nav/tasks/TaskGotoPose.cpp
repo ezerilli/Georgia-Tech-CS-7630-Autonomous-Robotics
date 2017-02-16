@@ -5,7 +5,7 @@ using namespace task_manager_msgs;
 using namespace task_manager_lib;
 using namespace floor_nav;
 
-#define DEBUG_GOTOPOSE
+//#define DEBUG_GOTOPOSE
 #ifdef DEBUG_GOTOPOSE
 #warning Debugging task GOTOPOSE
 #endif

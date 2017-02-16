@@ -88,7 +88,7 @@ class RoverPF(RoverKinematics):
 		currPart=mat(vstack([.0] *3))
 		for part in self.particles:
 			# calculating the supposed position of the landemark starting from the current particle position
-			rotZ= getRotation(part[2,0])*Z
+			rotZ= self.getRotation(part[2,0])*Z
 			currPart[0,0] = part[0,0] + rotZ[0,0]
 			currPart[1,0] = part[1,0] + rotZ[1,0]
 			#distance between the particle and the landmark
