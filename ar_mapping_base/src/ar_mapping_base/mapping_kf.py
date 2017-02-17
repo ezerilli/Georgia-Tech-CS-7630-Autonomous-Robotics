@@ -25,7 +25,7 @@ class Landmark:
 		H=self.getRotation(-X[2,0])
 		K=self.P*H.T*inv(H*self.P*H.T+R)
 		self.P=(numpy.identity(2)-K*H)*self.P
-		self.L=self.L+K*(Z-H*(self.L-X[0:2]))
+		self.L+=K*(Z-H*(self.L-X[0:2]))
 		return
 		
 	def getRotation(self, theta):
@@ -33,13 +33,6 @@ class Landmark:
 		R[0,0] = cos(theta); R[0,1] = -sin(theta)
 		R[1,0] = sin(theta); R[1,1] = cos(theta)
 		return R
-	
-	#def getRotation(self, theta):
-		#R = mat(zeros((2,2)))
-		#R[0,0] = cos(theta); R[0,1] = -sin(theta)
-		#R[1,0] = sin(theta); R[1,1] = cos(theta)
-		#return R
-		
 
 
 class MappingKF:
@@ -114,8 +107,8 @@ class MappingKF:
 			marker.scale.z = 0.2
 			marker.color.a = 1.0;
 			marker.color.r = 1.0;
-			marker.color.g = 0.0;
-			marker.color.b = 0.0;
+			marker.color.g = 1.0;
+			marker.color.b = .0;
 			marker.lifetime.secs=3.0;
 			ma.markers.append(marker)
 		self.marker_pub.publish(ma)

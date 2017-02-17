@@ -38,9 +38,20 @@ class RoverKF(RoverKinematics):
 		A[0,0] = 1 
 		A[0,2] = dX[0,0]*cos(theta)-dX[1,0]*sin(theta)
 		A[1,1] = 1
-		A[1,2] = dX[0,0]*cos(theta)+dX[1,0]*cos(theta)
+		A[1,2] = dX[0,0]*sin(theta)+dX[1,0]*cos(theta)
 		A[2,2] = 1
 		return A	
+		
+	def getHmatrix(self, L, X, theta):
+		H = mat(zeros((2,3)))
+		LmX=L-X[0:2]
+		H[0,0] = -cos(theta) 
+		H[0,1] = -sin(theta)
+		H[0,2] = -sin(theta)*LmX[0,0]+cos(theta)*LmX[1,0]
+		H[1,0] = sin(theta)
+		H[1,1] = -cos(theta)
+		H[1,2] = -cos(theta)*LmX[0,0]-sin(theta)*LmX[1,0]
+		return H
 	
 	def predict(self, motor_state, drive_cfg, encoder_precision):
 		self.lock.acquire()
@@ -57,16 +68,18 @@ class RoverKF(RoverKinematics):
 		
 		# Implement Kalman prediction here
 		# TODO
-		Q = mat(diag([encoder_precision,encoder_precision]))
+		Q = mat(diag([encoder_precision]*len(S)))
+		Q1 = mat(diag([encoder_precision]*3))
 		dX=iW*S
 		theta=self.X[2,0]
 		A=self.getAmatrix(dX,theta)
-		B=self.getRotation3D(theta)
+		B=self.getRotation3D(theta)*iW
 
 		# ultimately : 
 		self.X += self.getRotation3D(theta)*dX
-		self.P = A*self.P*A.T+B*Q*B.T+Q 
-
+		self.P = A*self.P*A.T+B*Q*B.T+Q1 
+		#print "Update: P="+str(self.P)
+		
 		self.lock.release()
 
 	def update_ar(self, Z, L, uncertainty):
@@ -74,13 +87,19 @@ class RoverKF(RoverKinematics):
 		print "Update: L="+str(L.T)+" X="+str(self.X.T)
 		# Implement kalman update using landmarks here
 		# TODO
-		# self.X = 
-		# self.P = 
+		theta=self.X[2,0]
+		R = mat(diag([uncertainty,uncertainty]))
+		
+		H=self.getHmatrix(L,self.X,theta)
+		K=self.P*H.T*inv(H*self.P*H.T+R)
+		self.P=(numpy.identity(3)-K*H)*self.P
+		self.X+=K*(Z-self.getRotation(-theta)*(L-self.X[0:2]))
+		
 		self.lock.release()
 
 	def update_compass(self, Z, uncertainty):
 		self.lock.acquire()
-		print "Update: S="+str(Z)+" X="+str(self.X.T)
+		#print "Update: S="+str(Z)+" X="+str(self.X.T)
 		# Implement kalman update using compass here
 		# TODO
 		# self.X = 
