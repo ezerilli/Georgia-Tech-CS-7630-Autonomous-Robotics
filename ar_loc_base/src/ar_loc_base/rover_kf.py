@@ -33,14 +33,10 @@ class RoverKF(RoverKinematics):
 		return R
 	
 	def getAmatrix(self, dX, theta):
-		A = mat(zeros((3,3)))
-		theta+=pi/2
-		A[0,0] = 1 
-		A[0,2] = dX[0,0]*cos(theta)-dX[1,0]*sin(theta)
-		A[1,1] = 1
-		A[1,2] = dX[0,0]*sin(theta)+dX[1,0]*cos(theta)
-		A[2,2] = 1
-		return A	
+		A = mat(eye(3,3))
+		A[0,2] = -dX[0,0]*sin(theta)-dX[1,0]*cos(theta)
+		A[1,2] = dX[0,0]*cos(theta)-dX[1,0]*sin(theta)
+		return A
 		
 	def getHmatrix(self, L, X, theta):
 		H = mat(zeros((2,3)))
@@ -63,22 +59,23 @@ class RoverKF(RoverKinematics):
 			return 
 		# Prepare odometry matrices (check rover_odo.py for usage)
 		iW = self.prepare_inversion_matrix(drive_cfg)
-		S = self.prepare_displacement_matrix(self.motor_state,motor_state,drive_cfg)
+		dS = self.prepare_displacement_matrix(self.motor_state,motor_state,drive_cfg)
 		self.motor_state.copy(motor_state)
-		
+	
 		# Implement Kalman prediction here
 		# TODO
-		Q = mat(diag([encoder_precision]*len(S)))
-		Q1 = mat(diag([encoder_precision]*3))
-		dX=iW*S
+		Qu = mat(diag([encoder_precision]*len(dS)))
+		Q = mat(diag([0.01]*3))
+		dX=iW*dS
 		theta=self.X[2,0]
 		A=self.getAmatrix(dX,theta)
 		B=self.getRotation3D(theta)*iW
 
 		# ultimately : 
 		self.X += self.getRotation3D(theta)*dX
-		self.P = A*self.P*A.T+B*Q*B.T+Q1 
+		self.P = A*self.P*A.T+B*Qu*B.T+Q 
 		#print "Update: P="+str(self.P)
+		print self.P
 		
 		self.lock.release()
 
