@@ -74,8 +74,6 @@ class RoverKF(RoverKinematics):
 		# ultimately : 
 		self.X += self.getRotation3D(theta)*dX
 		self.P = A*self.P*A.T+B*Qu*B.T+Q 
-		#print "Update: P="+str(self.P)
-		print self.P
 		
 		self.lock.release()
 

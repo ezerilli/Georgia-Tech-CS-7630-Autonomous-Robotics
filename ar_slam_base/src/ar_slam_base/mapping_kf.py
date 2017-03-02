@@ -76,15 +76,13 @@ class MappingKF(RoverKinematics):
 		# TODO
 		
 		Qu = mat(diag([encoder_precision]*len(dS)))
-		Q = mat(diag([0.0]*3))
+		Q = mat(diag([0.01]*3))
 		
 		A=self.getAmatrix(dX,theta)
 		B=self.getRotation3D(theta)*iW
 		
 		self.X[0:3,0]+= self.getRotation3D(theta)*dX
-		P=self.P[0:3,0:3]
-		self.P[0:3,0:3]= A*P*A.T+B*Qu*B.T
-
+		self.P[0:3,0:3]= A*self.P[0:3,0:3]*A.T+B*Qu*B.T+Q
 
 		self.lock.release()
 		return (self.X,self.P)
@@ -99,26 +97,32 @@ class MappingKF(RoverKinematics):
 		# TODO
 		
 		theta=self.X[2,0]
+		
 		R = mat(diag([uncertainty,uncertainty]))
-		if (hypot(Z[0,0],Z[1,0])<2.5):
-			if id in self.idx:
-				l=self.idx[id]
-				
+		if id in self.idx:	
+			l=self.idx[id]	
+			err=Z-self.getRotation(-theta)*(self.X[l:l+2,0]-self.X[0:2,0])
+			
+			if (hypot(err[0,0],err[1,0])<0.5):
 				H=self.getHmatrix(self.X,theta,id)
 				K=self.P*H.T*inv(H*self.P*H.T+R)
-				
 				self.P=(numpy.identity(len(self.P))-K*H)*self.P
 				self.X+=K*(Z-self.getRotation(-theta)*(self.X[l:l+2,0]-self.X[0:2,0]))
-				
-			else:
+			
+		else:
+			err=Z
+			if (hypot(err[0,0],err[1,0])<2.5):
 				self.idx[id]=len(self.X)
 				self.X = numpy.concatenate((self.X,self.X[0:2,0]+self.getRotation(theta)*Z),axis=0)
 				
+				A=self.getAmatrix(Z,theta)
 				F=self.P
-				self.P=mat(zeros((len(self.P)+2,len(self.P)+2)))
-				self.P[0:len(F),0:len(F)] = F
-				self.P[len(F):len(F)+2,len(F):len(F)+2] = R
-			
+				n=self.P.shape[0]
+				#print(n)
+				self.P=mat(zeros((n+2,n+2)))
+				#self.P[0:n,0:n] = F
+				print  R +A[0:2,0:3]*self.P[0:3,0:3]*A[0:2,0:3].T
+				self.P[n:n+2,n:n+2] = R +A[0:2,0:3]*self.P[0:3,0:3]*A[0:2,0:3].T	
 
 		self.lock.release()
 		return (self.X,self.P)
