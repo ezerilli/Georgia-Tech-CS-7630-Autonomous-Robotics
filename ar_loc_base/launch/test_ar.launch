@@ -40,7 +40,7 @@
         <!-- Expected precision of wheel displacement measurement (in meter) -->
         <param name="encoder_precision" value="0.001"/>
         <!-- Expected precision of ar_tag localisation (in meter) -->
-        <param name="ar_precision" value="0.5"/>
+        <param name="ar_precision" value="0.05"/>
         <!-- Expected precision of compass measurement (in radian) -->
         <param name="compass_precision" value="0.1745"/>
         <!-- Initial value of X,Y,Theta -->
