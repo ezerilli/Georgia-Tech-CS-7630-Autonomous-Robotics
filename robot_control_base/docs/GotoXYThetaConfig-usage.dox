@@ -1,0 +1,12 @@
+\subsubsection usage Usage
+\verbatim
+<node name="robot_control_base" pkg="robot_control_base" type="robot_control_base">
+  <param name="k_v" type="double" value="3.0" />
+  <param name="k_alpha" type="double" value="8.0" />
+  <param name="k_beta" type="double" value="-1.5" />
+  <param name="max_velocity" type="double" value="0.5" />
+  <param name="max_rotational_velocity" type="double" value="0.5" />
+  <param name="dist_threshold" type="double" value="0.1" />
+</node>
+\endverbatim
+

@@ -1,0 +1,38 @@
+<launch>
+  <!-- joy node -->
+  <node respawn="true" pkg="joy" type="joy_node" name="joy" >
+    <!-- <param name="dev" type="string" value="/dev/input/js0" /> -->
+    <!-- <param name="deadzone" value="0.12" /> -->
+    <param name="autorepeat_rate" value="10.0" />
+  </node>
+
+  <!-- Axes -->
+  <node pkg="vrep_ros_teleop" type="teleop.py" name="teleop">
+    <param name="axis_linear_x" value="1" type="int"/>
+    <param name="axis_angular" value="0" type="int"/>
+    <param name="scale_linear" value="1.5" type="double"/>
+    <param name="scale_angular" value="2.0" type="double"/>
+    <remap from="/teleop/joy" to="/joy"/>
+    <remap from="/teleop/twistCommand" to="/vrep/twistCommand"/>
+  </node>
+
+  <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pc_laser" output="screen" >
+      <remap from="cloud_in" to="/vrep/hokuyoSensor"/>
+      <param name="min_height" value="-1.00"/>
+      <param name="max_height" value="1.00"/>
+  </node>
+
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <param name="base_frame" value="/rosControlledBubbleRob"/>
+    <param name="odom_frame" value="/world"/>
+    <param name="maxURange" value="5.0"/>
+    <param name="maxRange" value="5.0"/>
+    <param name="xmin" value="-10.0"/>
+    <param name="xmax" value="10.0"/>
+    <param name="ymin" value="-10.0"/>
+    <param name="ymax" value="10.0"/>
+    <param name="map_update_interval" value="1.0"/>
+  </node>
+
+
+</launch>

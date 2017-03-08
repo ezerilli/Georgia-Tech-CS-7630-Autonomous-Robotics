@@ -1,0 +1,11 @@
+\subsubsection parameters ROS parameters
+
+Reads and maintains the following parameters on the ROS server
+
+- \b "~velocity" : \b [double] Constant velocity min: 0.0, default: 0.5, max: 10.0
+- \b "~k_y" : \b [double] Gain for lateral control min: -20.0, default: 1.0, max: 20.0
+- \b "~k_theta" : \b [double] Gain for angular control min: -20.0, default: 1.0, max: 20.0
+- \b "~max_angular_velocity" : \b [double] Max allowed angular velocity min: 0.0, default: 0.5, max: 5.0
+- \b "~max_y_error" : \b [double] Saturation value for lateral error min: 0.0, default: 2.0, max: 10.0
+- \b "~dist_threshold" : \b [double] Distance at which a the target is considered reached min: 0.0, default: 0.1, max: 10.0
+
