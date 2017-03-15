@@ -39,6 +39,7 @@ class PathFollower {
         Trajectory traj_;
 
         void traj_cb(const occgrid_planner_base::TrajectoryConstPtr & msg) {
+			traj_.clear();
             frame_id_ = msg->header.frame_id;
             for (unsigned int i=0;i<msg->Ts.size();i++) {
                 traj_.insert(Trajectory::value_type(msg->Ts[i].header.stamp.toSec(), msg->Ts[i]));
