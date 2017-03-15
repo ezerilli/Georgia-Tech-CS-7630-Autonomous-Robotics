@@ -21,7 +21,7 @@
   <node pkg="nodelet" type="nodelet" name="nodelet_manager" output="screen" respawn="true" args="manager"/>
 
   <!-- Fake Laser -->
-  <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pc_laser">
+   <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pc_laser">
     <param name="min_height" value="-1.0" />
     <param name="max_height" value="1.0" />
     <param name="range_min" value="0.20" />
