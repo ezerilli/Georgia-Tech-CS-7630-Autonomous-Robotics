@@ -67,7 +67,7 @@ class OccupancyGridPlanner {
                             break;
                         case -1: 
                         default:
-                            og_(j,i) = UNKNOWN; 
+                            og_(j,i) = FREE; 
                             break;
                     }
                     // Update the bounding box of free or occupied cells.
@@ -284,8 +284,6 @@ class OccupancyGridPlanner {
             }
             if (isnan(cell_value(target.x, target.y, target.z))) {
                 // No path found
-                if (heap.empty()) ROS_ERROR("Fatal cacca1");
-                if (heap.begin()->second==target) ROS_ERROR("Fatal cacca2");
                 ROS_ERROR("No path found from (%d, %d, %d) to (%d, %d, %d) because ",start.x,start.y,start.z,target.x,target.y,target.z);
                 return;
             }

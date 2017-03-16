@@ -236,7 +236,7 @@ class ObstacleAvoidance {
             nh_.param("linear_velocity_resolution",linear_velocity_resolution_,0.05);
             nh_.param("angular_velocity_resolution",angular_velocity_resolution_,0.05);
             nh_.param("robot_radius",robot_radius_,0.1);
-            nh_.param("time_horizon",time_horizon_,0.1);
+            nh_.param("time_horizon",time_horizon_,1.0);
             nh_.param("k_v",k_v_,1.0);
             nh_.param("k_w",k_w_,1.0);
 

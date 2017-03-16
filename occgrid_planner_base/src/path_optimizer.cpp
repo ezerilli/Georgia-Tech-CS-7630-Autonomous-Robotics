@@ -65,7 +65,7 @@ class PathOptimizer {
 
     public:
         PathOptimizer() : nh_("~") {
-            nh_.param("velocity",velocity_,1.0);
+            nh_.param("velocity",velocity_,2.0);
             nh_.param("max_acceleration",max_acceleration_,1.0);
             nh_.param("max_braking",max_braking_,1.0);
             path_sub_ = nh_.subscribe<nav_msgs::Path>("path",1,&PathOptimizer::path_cb,this);
