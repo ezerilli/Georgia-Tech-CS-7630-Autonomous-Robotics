@@ -83,7 +83,7 @@ class ObstacleAvoidance {
     protected: // ROS Callbacks
         void command_velocity_cb(const geometry_msgs::TwistConstPtr msg) {
             geometry_msgs::Twist filtered = findClosestAcceptableVelocity(*msg);
-            ROS_INFO("Speed limiter: desired %.2f controlled %.2f",msg->linear.x,filtered.linear.x);
+            //ROS_INFO("Speed limiter: desired %.2f controlled %.2f",msg->linear.x,filtered.linear.x);
             safe_vel_pub_.publish(filtered);
         }
 

@@ -109,7 +109,7 @@ class PathFollower {
                         twist.linear.x = 0.0;
                         twist.angular.z = 0.0;
                     } else {
-						if (error.x < 3.0){
+						//if (error.x < 3.0){
                         twist.linear.x = it->second.twist.linear.x + Kx_ * error.x;
                         twist.linear.x = std::min(twist.linear.x,max_velocity_);
                         error.y = sat(error.y,max_y_error_);
@@ -118,7 +118,7 @@ class PathFollower {
                         twist.angular.z = sat(twist.angular.z,max_rot_speed_);
 
                         printf("Twist: %.2f %.2f\n",twist.linear.x,twist.angular.z);
-                        }
+                        //}
                     }
                     twist_pub_.publish(twist);
                 } else {

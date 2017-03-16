@@ -232,8 +232,8 @@ class OccupancyGridPlanner {
 				
             // Cost of displacement corresponding the neighbours. Diagonal
             // moves are 44% longer.
-            float cost[2][5] = {{       1, 5, 5, 20, 20},
-							     {sqrt(2), 5, 5, 20, 20}};
+            float cost[2][5] = {{       1, 1, 1, 50, 50},
+							     {sqrt(2), 1, 1, 50, 50}};
             
             // The core of Dijkstra's Algorithm, a sorted heap, where the first
             // element is always the closer to the start.
@@ -252,10 +252,10 @@ class OccupancyGridPlanner {
                 heap.erase(hit);
                 // Now see where we can go from this_cell
                 for (unsigned int i=0;i<5;i++) {
-						//ROS_INFO("Cacca (%d) this cell (%d, %d, %d)", i, this_cell.x,this_cell.y,this_cell.z);
-						//ROS_INFO("Cacca (%d) neighbour (%d, %d, %d)", i,  neighbours[i][this_cell.z].x, neighbours[i][this_cell.z].y, neighbours[i][this_cell.z].z);
+						//ROS_INFO("(%d) this cell (%d, %d, %d)", i, this_cell.x,this_cell.y,this_cell.z);
+						//ROS_INFO("(%d) neighbour (%d, %d, %d)", i,  neighbours[i][this_cell.z].x, neighbours[i][this_cell.z].y, neighbours[i][this_cell.z].z);
 						cv::Point3i dest = this_cell + neighbours[this_cell.z][i];
-						//ROS_INFO("Cacca (%d) dest (%d, %d, %d)", i, dest.x,dest.y,dest.z);
+						//ROS_INFO("(%d) dest (%d, %d, %d)", i, dest.x,dest.y,dest.z);
 						dest.z = dest.z %8;
 						if (!isInGrid(dest)) {
 							// outside the grid
@@ -268,8 +268,8 @@ class OccupancyGridPlanner {
 						}
 						float cv = cell_value(dest.x,dest.y,dest.z);
 						float new_cost = this_cost + ((i%2)==0)?(cost[0][i]):(cost[1][i]);
-						//if (new_cost >= cv) ROS_INFO("Cacca (%d) cost %d >= %d", i, cv, new_cost);
-						//if (isnan(cv)) ROS_INFO("Cacca NaN (%d)  cost %d", i, cv);
+						//if (new_cost >= cv) ROS_INFO("(%d) cost %d >= %d", i, cv, new_cost);
+						//if (isnan(cv)) ROS_INFO("NaN (%d)  cost %d", i, cv);
 
 						if (isnan(cv) || (new_cost < cv)) {
 							// found shortest path (or new path), updating the
@@ -278,7 +278,7 @@ class OccupancyGridPlanner {
 							cell_value(dest.x,dest.y,dest.z)= new_cost;
 							// And insert the selected cells in the map.
 							heap.insert(Heap::value_type(new_cost+heuristic(dest,target),dest));
-							//ROS_INFO("Cacca dest (%d %d %d) to target (%d, %d, %d), cost %d",dest.x,dest.y,dest.z,target.x,target.y,target.z,new_cost+heuristic(dest,target));
+							//ROS_INFO("dest (%d %d %d) to target (%d, %d, %d), cost %d",dest.x,dest.y,dest.z,target.x,target.y,target.z,new_cost+heuristic(dest,target));
 						}
                 }
             }
