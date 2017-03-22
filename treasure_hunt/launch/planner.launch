@@ -85,6 +85,17 @@
 
   <node pkg="robot_control_base" type="bubble_odom.py" name="odom" output="screen">
   </node>
+  
+  <node pkg="treasure_hunt" type="signal_mapper" name="mapper" output="screen">
+    <param name="neighbourhood" value="8"/>
+    <param name="base_frame" value="/body"/>
+    <param name="debug" value="False"/>
+    <remap from="/mapper/occ_grid" to="/map"/>
+    <remap from="/mapper/goal" to="/move_base_simple/goal"/>
+    <remap from="/mapper/signal" to="/vrep/metalDetector"/>
+  </node>
+  
+  <!--
 
   <node pkg="occgrid_planner_base" type="occgrid_planner_b" name="planner" output="screen">
     <param name="neighbourhood" value="8"/>
@@ -115,5 +126,6 @@
       <remap from="/path_follower/twistCommand" to="/mux/autoCommand"/>
       <remap from="/path_follower/goal" to="/move_base_simple/goal"/>
   </node>
+  -->
 
 </launch>
