@@ -285,10 +285,10 @@ class ObstacleAvoidance {
 int main(int argc, char * argv[]) 
 {
     ros::init(argc,argv,"obstacle_avoidance");
-    cv::namedWindow( "OccGrid", CV_WINDOW_AUTOSIZE );
-    cv::namedWindow( "DAlpha", CV_WINDOW_AUTOSIZE );
-    cv::namedWindow( "Va", CV_WINDOW_AUTOSIZE );
-    cv::namedWindow( "Scores", CV_WINDOW_AUTOSIZE );
+    //cv::namedWindow( "OccGrid", CV_WINDOW_AUTOSIZE );
+    //cv::namedWindow( "DAlpha", CV_WINDOW_AUTOSIZE );
+    //cv::namedWindow( "Va", CV_WINDOW_AUTOSIZE );
+    //cv::namedWindow( "Scores", CV_WINDOW_AUTOSIZE );
 
     ObstacleAvoidance ca;
 

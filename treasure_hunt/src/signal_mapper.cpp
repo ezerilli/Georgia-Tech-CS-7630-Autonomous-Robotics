@@ -37,7 +37,6 @@ class OccupancyGridPlanner {
         nav_msgs::MapMetaData info_;
         std::string frame_id_;
         std::string base_link_;
-        unsigned int neighbourhood_;
         bool ready;
         bool debug;
         bool first_run;
@@ -55,7 +54,7 @@ class OccupancyGridPlanner {
                     -info_.origin.position.y/info_.resolution,0);
             ROS_INFO("Og_size (%i, %i)", msg->info.height, msg->info.width);
 			if (first_run){
-				tg_ = cv::Mat_<uint8_t>(og_.size(),0xFF);
+				tg_ = cv::Mat_<uint8_t>(og_.size(),0x01);
 				ROS_INFO("Tg_size (%i, %i)", msg->info.height, msg->info.width);
 				first_run=false;
 			}
@@ -103,7 +102,18 @@ class OccupancyGridPlanner {
             unsigned int w = maxx - minx;
             unsigned int h = maxy - miny;
             roi_ = cv::Rect(minx,miny,w,h);
-            cv::cvtColor(og_, og_rgb_, CV_GRAY2RGB);
+            //cv::cvtColor(og_, og_rgb_, CV_GRAY2RGB);
+            
+            
+            std::vector<cv::Mat> images(3);
+			cv::Mat_<uint8_t> white = cv::Mat_<uint8_t>(og_.size(),0xFF);
+			images.at(0) = og_; //for blue channel
+			images.at(1) = og_; //for green channel
+			images.at(2) = white;  //for red channel
+
+			cv::merge(images, og_rgb_);
+            
+            
             // Compute a sub-image that covers only the useful part of the
             // grid.
             cropped_og_ = cv::Mat_<uint8_t>(og_,roi_);
@@ -347,18 +357,23 @@ class OccupancyGridPlanner {
 				}
 				float signal=msg.data;
 				
-				for(int i=2;i>=-2;i--){
-					for(int j=2;j>=-2;j--){
-						tg_(point3iToPoint(current_point+cv::Point3i( i, j,0)))= (uint8_t)((signal+0.3)/1.3*FREE);
-					}
+				for(int i=10;i>=-10;i--){
+					for(int j=10;j>=-10;j--){
+						uint8_t intensity=(uint8_t)((signal+0.3)/1.3*FREE);
+						cv::Point3i radius_point=cv::Point3i(i,j,0);
+						double r = hypot(radius_point.x,radius_point.y);
+						if(intensity >= tg_(point3iToPoint(current_point)) && r<=3.) {
+							tg_(point3iToPoint(current_point+radius_point))= intensity;
+						}
+					} 
 				}
-				tg_=tg_&og_;
 				// The lines below are only for display
 				cv::Size s = tg_.size();
 				unsigned int w = s.width;
 				unsigned int h = s.height;
 				roi_ = cv::Rect(0,0,w,h);
 				cv::cvtColor(tg_, tg_rgb_, CV_GRAY2RGB);
+				tg_rgb_=tg_rgb_&og_rgb_;
 				tg_rgb_(point3iToPoint(current_point)).val[1]=OCCUPIED;
 				// Compute a sub-image that covers only the useful part of the
 				// grid.
@@ -386,18 +401,9 @@ class OccupancyGridPlanner {
 
     public:
         OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true) {
-            int nbour = 4;
             nh_.param("base_frame",base_link_,std::string("/body"));
             nh_.param("debug",debug,false);
-            nh_.param("neighbourhood",nbour,nbour);
-            nh_.param("radius",radius,0.3);
-            switch (nbour) {
-                case 4: neighbourhood_ = nbour; break;
-                case 8: neighbourhood_ = nbour; break;
-                default: 
-                    ROS_WARN("Invalid neighbourhood specification (%d instead of 4 or 8)",nbour);
-                    neighbourhood_ = 8;
-            }
+            nh_.param("radius",radius,0.2);
             og_sub_ = nh_.subscribe("occ_grid",1,&OccupancyGridPlanner::og_callback,this);
             target_sub_ = nh_.subscribe("goal",1,&OccupancyGridPlanner::target_callback,this);
             signal_sub_ = nh_.subscribe("signal",1,&OccupancyGridPlanner::tg_callback,this);
