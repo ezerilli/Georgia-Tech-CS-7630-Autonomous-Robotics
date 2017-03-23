@@ -125,7 +125,7 @@ class ObstacleAvoidance {
             // possible
             cv::Point myself(grid_width_/2,grid_width_/2);
             cv::circle(og_,myself, ceil(robot_radius_/map_resolution_ + 1), cv::Scalar(FREE), -1); // filled circle
-            cv::imshow( "OccGrid", og_ );
+            //cv::imshow( "OccGrid", og_ );
             //
             // First convert the obstacle into the ego-kinematic space
             // (d,alpha), where d is the distance on the arc of circle, and
@@ -146,7 +146,7 @@ class ObstacleAvoidance {
                     }
                 }
             }
-            cv::imshow( "DAlpha", d_alpha_ );
+            //cv::imshow( "DAlpha", d_alpha_ );
 
         }
 
@@ -213,8 +213,8 @@ class ObstacleAvoidance {
 				}
             }
             cv::resize(scores,scores,cv::Size(200,200));
-            cv::imshow("Va",Va);
-            cv::imshow("Scores",scores);
+            //cv::imshow("Va",Va);
+            //cv::imshow("Scores",scores);
 
             res.linear.x = best_v;
             res.angular.z = best_w;
