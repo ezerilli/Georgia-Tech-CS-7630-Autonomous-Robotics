@@ -11,6 +11,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 
+#include <std_msgs/Bool.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -28,6 +29,7 @@ class PathFollower {
         ros::Publisher twist_pub_;
         ros::Publisher pose2d_pub_;
         ros::Publisher target_pub_;
+        ros::Publisher reached_pub_;
         ros::Subscriber target_sub_;
         double look_ahead_;
         double Kx_,Ky_,Ktheta_;
@@ -37,6 +39,7 @@ class PathFollower {
         std::string frame_id_, base_frame_;
         geometry_msgs::PoseStamped goal;
         ros::Timer timer;
+        std_msgs::Bool Reached;
 
         typedef std::map<double, occgrid_planner_base::TrajectoryElement> Trajectory;
 
@@ -92,6 +95,7 @@ class PathFollower {
             pose2d_pub_ = nh_.advertise<geometry_msgs::Pose2D>("error",1);
             target_sub_ = nh_.subscribe("goal",1,&PathFollower::target_callback,this);
             target_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("goal",1);
+            reached_pub_ = nh_.advertise<std_msgs::Bool>("goal_reached",1);
             
         };
             
@@ -131,6 +135,10 @@ class PathFollower {
                         // Finished
                         twist.linear.x = 0.0;
                         twist.angular.z = 0.0;
+                        Reached.data = true;
+                        reached_pub_.publish(Reached);
+                        ROS_INFO("Goal Reached!!");
+
                     } else {				
                         twist.linear.x = it->second.twist.linear.x + Kx_ * error.x;
                         twist.linear.x = std::min(twist.linear.x,max_velocity_);

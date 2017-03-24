@@ -93,6 +93,7 @@
     <remap from="/mapper/occ_grid" to="/map"/>
     <remap from="/mapper/goal" to="/move_base_simple/goal"/>
     <remap from="/mapper/signal" to="/vrep/metalDetector"/>
+    <remap from="/mapper/goal_reached" to="/path_follower/goal_reached"/>
   </node>
   
   <!--
@@ -104,13 +105,13 @@
     <remap from="/planner/occ_grid" to="/map"/>
     <remap from="/planner/goal" to="/move_base_simple/goal"/>
   </node>
-
-
+  -->
+  
   <node pkg="occgrid_planner_base" type="path_optimizer_b" name="path_optimizer" output="screen">
       <param name="max_acceleration" value="0.3"/> 
       <param name="max_braking" value="0.1"/> 
       <param name="velocity" value="0.1"/> 
-      <remap from="/path_optimizer/path" to="/planner/path"/>
+      <remap from="/path_optimizer/path" to="/mapper/path"/>
   </node>
 
   <node pkg="occgrid_planner_base" type="path_follower_b" name="path_follower" output="screen">
@@ -126,6 +127,6 @@
       <remap from="/path_follower/twistCommand" to="/mux/autoCommand"/>
       <remap from="/path_follower/goal" to="/move_base_simple/goal"/>
   </node>
-  -->
+ 
 
 </launch>

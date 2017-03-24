@@ -15,6 +15,7 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Bool.h>
 
 #define FREE 0xFF
 #define UNKNOWN 0x80
@@ -27,16 +28,18 @@ class OccupancyGridPlanner {
         ros::Subscriber og_sub_;
         ros::Subscriber target_sub_;
         ros::Subscriber signal_sub_;
+        ros::Subscriber reached_sub_;
         ros::Publisher path_pub_;
         tf::TransformListener listener_;
 
         cv::Rect roi_;
-        cv::Mat_<uint8_t> og_, tg_,cropped_og_, cropped_tg_;
+        cv::Mat_<uint8_t> og_, tg_, fg_,cropped_og_, cropped_tg_;
         cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, og_rgb_marked_;
         cv::Point3i og_center_;
         nav_msgs::MapMetaData info_;
         std::string frame_id_;
         std::string base_link_;
+        std::vector<cv::Point3i> frontier;  
         bool ready;
         bool debug;
         bool first_run;
@@ -54,7 +57,8 @@ class OccupancyGridPlanner {
                     -info_.origin.position.y/info_.resolution,0);
             ROS_INFO("Og_size (%i, %i)", msg->info.height, msg->info.width);
 			if (first_run){
-				tg_ = cv::Mat_<uint8_t>(og_.size(),0x01);
+				tg_ = cv::Mat_<uint8_t>(og_.size(), 0x40);
+				fg_ = cv::Mat_<uint8_t>(og_.size(), 0xFF);
 				ROS_INFO("Tg_size (%i, %i)", msg->info.height, msg->info.width);
 				first_run=false;
 			}
@@ -102,17 +106,14 @@ class OccupancyGridPlanner {
             unsigned int w = maxx - minx;
             unsigned int h = maxy - miny;
             roi_ = cv::Rect(minx,miny,w,h);
+            
             //cv::cvtColor(og_, og_rgb_, CV_GRAY2RGB);
-            
-            
             std::vector<cv::Mat> images(3);
 			cv::Mat_<uint8_t> white = cv::Mat_<uint8_t>(og_.size(),0xFF);
 			images.at(0) = og_; //for blue channel
 			images.at(1) = og_; //for green channel
 			images.at(2) = white;  //for red channel
-
 			cv::merge(images, og_rgb_);
-            
             
             // Compute a sub-image that covers only the useful part of the
             // grid.
@@ -339,6 +340,7 @@ class OccupancyGridPlanner {
             ROS_INFO("Request completed");
         }
 		
+		// Callback for Treasure Grids
 		void tg_callback(const std_msgs::Float32 & msg) {
 						
 			if(!first_run){
@@ -357,11 +359,13 @@ class OccupancyGridPlanner {
 				}
 				float signal=msg.data;
 				
+				double r;
+				uint8_t intensity;
 				for(int i=10;i>=-10;i--){
 					for(int j=10;j>=-10;j--){
-						uint8_t intensity=(uint8_t)((signal+0.3)/1.3*FREE);
+						intensity=(uint8_t)((signal+0.5)/1.5*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
-						double r = hypot(radius_point.x,radius_point.y);
+						 r = hypot(radius_point.x,radius_point.y);
 						if(intensity >= tg_(point3iToPoint(current_point)) && r<=3.) {
 							tg_(point3iToPoint(current_point+radius_point))= intensity;
 						}
@@ -397,6 +401,32 @@ class OccupancyGridPlanner {
 				}
 			}
 		}
+		
+		
+		// Callback for Treasure Grids
+		void reached_callback(const std_msgs::Bool & msg) {
+			if(!first_run){
+				frontier.clear();
+				cv::Size s = tg_rgb_.size();
+				for (unsigned int j=0;j<s.height;j++) {
+					for (unsigned int i=0;i<s.width;i++) {
+						if (tg_rgb_(i,j).val[0]>0x40){
+							for (int m=-1; m<2; m++){
+								for (int n=-1; n<2; n++){
+									if (m!=0 && n!=0){
+										if (tg_rgb_(i+m,j+n).val[0]==0x40){
+											frontier.push_back(cv::Point3i(i+m,j+n,0));
+											fg_(i,j)=OCCUPIED;
+										}	
+									}
+								}
+							}			
+						}	
+					}
+				}
+				cv::imshow( "FrontierGrid", fg_ );		
+			}
+		}
 
 
     public:
@@ -407,6 +437,7 @@ class OccupancyGridPlanner {
             og_sub_ = nh_.subscribe("occ_grid",1,&OccupancyGridPlanner::og_callback,this);
             target_sub_ = nh_.subscribe("goal",1,&OccupancyGridPlanner::target_callback,this);
             signal_sub_ = nh_.subscribe("signal",1,&OccupancyGridPlanner::tg_callback,this);
+            reached_sub_= nh_.subscribe("goal_reached",1,&OccupancyGridPlanner::reached_callback,this);
             path_pub_ = nh_.advertise<nav_msgs::Path>("path",1,true);
             
         }
