@@ -56,12 +56,15 @@ class PathFollower {
         
         void target_callback(const geometry_msgs::PoseStampedConstPtr & msg) {
              goal=*msg;
+             Reached.data = false;
              timer.start();
 		}
 		
 		void replanner_callback(const ros::TimerEvent& event){
-			target_pub_.publish(goal);
-			ROS_INFO("Callback Timer triggered");
+			if(!Reached.data){
+				target_pub_.publish(goal);
+				ROS_INFO("Callback Timer triggered");
+			}
 		}
 
         geometry_msgs::Pose2D computeError(const ros::Time & now, const occgrid_planner_base::TrajectoryElement & te) {

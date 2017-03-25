@@ -33,7 +33,7 @@ class OccupancyGridPlanner {
         tf::TransformListener listener_;
 
         cv::Rect roi_;
-        cv::Mat_<uint8_t> og_, tg_, fg_,cropped_og_, cropped_tg_;
+        cv::Mat_<uint8_t> og_, tg_,cropped_og_, cropped_tg_;
         cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, og_rgb_marked_;
         cv::Point3i og_center_;
         nav_msgs::MapMetaData info_;
@@ -58,7 +58,7 @@ class OccupancyGridPlanner {
             ROS_INFO("Og_size (%i, %i)", msg->info.height, msg->info.width);
 			if (first_run){
 				tg_ = cv::Mat_<uint8_t>(og_.size(), 0x40);
-				fg_ = cv::Mat_<uint8_t>(og_.size(), 0xFF);
+				//fg_ = cv::Mat_<uint8_t>(og_.size(), 0xFF);
 				ROS_INFO("Tg_size (%i, %i)", msg->info.height, msg->info.width);
 				first_run=false;
 			}
@@ -363,7 +363,7 @@ class OccupancyGridPlanner {
 				uint8_t intensity;
 				for(int i=10;i>=-10;i--){
 					for(int j=10;j>=-10;j--){
-						intensity=(uint8_t)((signal+0.5)/1.5*FREE);
+						intensity=(uint8_t)((signal+0.7)/1.7*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
 						 r = hypot(radius_point.x,radius_point.y);
 						if(intensity >= tg_(point3iToPoint(current_point)) && r<=3.) {
@@ -407,18 +407,19 @@ class OccupancyGridPlanner {
 		void reached_callback(const std_msgs::Bool & msg) {
 			if(!first_run){
 				frontier.clear();
+				cv::Mat_<uint8_t> fg_ = cv::Mat_<uint8_t>(og_.size(), 0xFF);
 				cv::Size s = tg_rgb_.size();
 				for (unsigned int j=0;j<s.height;j++) {
 					for (unsigned int i=0;i<s.width;i++) {
 						if (tg_rgb_(i,j).val[0]>0x40){
 							for (int m=-1; m<2; m++){
 								for (int n=-1; n<2; n++){
-									if (m!=0 && n!=0){
+									//if (m!=0 && n!=0){
 										if (tg_rgb_(i+m,j+n).val[0]==0x40){
 											frontier.push_back(cv::Point3i(i+m,j+n,0));
 											fg_(i,j)=OCCUPIED;
 										}	
-									}
+									//}
 								}
 							}			
 						}	
