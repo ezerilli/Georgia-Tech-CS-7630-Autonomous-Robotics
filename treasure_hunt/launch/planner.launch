@@ -81,7 +81,9 @@
 		<param name="ymin" value="-15"/>
 		<param name="xmax" value="15"/>
 		<param name="ymax" value="15"/>
+		2>/dev/null
 	</node>
+	
 
   <node pkg="robot_control_base" type="bubble_odom.py" name="odom" output="screen">
   </node>

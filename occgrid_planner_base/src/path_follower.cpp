@@ -111,7 +111,7 @@ class PathFollower {
         void run() {
             ros::Rate rate(20);
             ros::Time delay(0);
-            timer = nh_.createTimer(ros::Duration(5.0), &PathFollower::replanner_callback,this);
+            timer = nh_.createTimer(ros::Duration(15.0), &PathFollower::replanner_callback,this);
             timer.stop();
             while (ros::ok()) {
                 ros::spinOnce();
