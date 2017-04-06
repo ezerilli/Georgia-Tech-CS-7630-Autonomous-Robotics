@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <launch>
 
  <!-- joy node -->
@@ -8,7 +9,6 @@
   </node>
 
  <!-- Axes -->
-
   <node pkg="vrep_ros_teleop" type="teleop.py" name="teleop">
       <param name="axis_linear" value="1" type="int"/>
       <param name="axis_angular" value="0" type="int"/>
@@ -34,26 +34,25 @@
   </node>
   -->
   
-   <node pkg="obstacle_avoidance_base" type="obstacle_avoidance_base" name="obstacle_avoidance" output="screen">
-      launch-prefix="xterm -e gdb --args"
-      <param name="base_frame" value="/body" />
-      <param name="max_range" value="5.0" />
-      <param name="max_linear_velocity" value="1.0" />
-      <param name="max_angular_velocity" value="1.0" />
-      <param name="max_linear_accel" value="5.0" />
-      <param name="max_angular_accel" value="5.0" />
-      <param name="map_resolution" value="0.05" />
-      <param name="linear_velocity_resolution" value="0.05" />
-      <param name="angular_velocity_resolution" value="0.05" />
-      <param name="robot_radius" value="0.1" />
-      <param name="time_horizon" value="2.0" />
-      <param name="k_v" value="10.0" />
-      <param name="k_w" value="1.0" />
-
-      <remap from="/obstacle_avoidance/scans" to="/vrep/hokuyoSensor"/>
-      <remap from="/obstacle_avoidance/current_velocity" to="/vrep/twistStatus"/>
-      <!-- <remap from="/obstacle_avoidance/command_velocity" to="/vrep/twistCommand"/> -->
-      <remap from="/obstacle_avoidance/output_velocity" to="/vrep/twistCommand"/>
+  <node pkg="obstacle_avoidance_base" type="obstacle_avoidance_base" name="obstacle_avoidance" output="screen">
+   launch-prefix="xterm -e gdb --args"
+   <param name="base_frame" value="/body" />
+   <param name="max_range" value="5.0" />
+   <param name="max_linear_velocity" value="1.0" />
+   <param name="max_angular_velocity" value="1.0" />
+   <param name="max_linear_accel" value="5.0" />
+   <param name="max_angular_accel" value="5.0" />
+   <param name="map_resolution" value="0.05" />
+   <param name="linear_velocity_resolution" value="0.05" />
+   <param name="angular_velocity_resolution" value="0.05" />
+   <param name="robot_radius" value="0.1" />
+   <param name="time_horizon" value="2.0" />
+   <param name="k_v" value="10.0" />
+   <param name="k_w" value="1.0" />
+   <remap from="/obstacle_avoidance/scans" to="/vrep/hokuyoSensor"/>
+   <remap from="/obstacle_avoidance/current_velocity" to="/vrep/twistStatus"/>
+   <!-- <remap from="/obstacle_avoidance/command_velocity" to="/vrep/twistCommand"/> -->
+   <remap from="/obstacle_avoidance/output_velocity" to="/vrep/twistCommand"/>
   </node>
 
   <!-- Kinect -->
@@ -66,22 +65,21 @@
     <param name="range_min" value="0.20" />
     <param name="range_max" value="10.0" />
     <param name="use_inf" value="false" />
-
     <remap from="cloud_in" to="/vrep/hokuyoSensor" />
   </node>
 
-	<node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
-		<param name="base_frame" value="/body"/>
-		<param name="odom_frame" value="/odom"/>
-		<param name="maxRange" value="10.0"/>
-		<param name="map_update_interval" value="1.0"/>
-		<param name="linearUpdate" value="0.1"/>
-		<param name="angularUpdate" value="0.1"/>
-		<param name="xmin" value="-15"/>
-		<param name="ymin" value="-15"/>
-		<param name="xmax" value="15"/>
-		<param name="ymax" value="15"/>
-		2>/dev/null
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+	<param name="base_frame" value="/body"/>
+	<param name="odom_frame" value="/odom"/>
+	<param name="maxRange" value="10.0"/>
+	<param name="map_update_interval" value="1.0"/>
+	<param name="linearUpdate" value="0.1"/>
+	<param name="angularUpdate" value="0.1"/>
+	<param name="xmin" value="-15"/>
+    <param name="ymin" value="-15"/>
+	<param name="xmax" value="15"/>
+	<param name="ymax" value="15"/>
+	2>/dev/null
 	</node>
 	
 
@@ -99,7 +97,6 @@
   </node>
   
   <!--
-
   <node pkg="occgrid_planner_base" type="occgrid_planner_b" name="planner" output="screen">
     <param name="neighbourhood" value="8"/>
     <param name="base_frame" value="/body"/>
@@ -129,6 +126,5 @@
       <remap from="/path_follower/twistCommand" to="/mux/autoCommand"/>
       <remap from="/path_follower/goal" to="/move_base_simple/goal"/>
   </node>
- 
 
 </launch>

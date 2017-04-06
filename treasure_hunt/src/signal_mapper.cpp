@@ -31,20 +31,21 @@ class OccupancyGridPlanner {
         ros::Subscriber reached_sub_;
         ros::Publisher path_pub_;
         ros::Publisher target_pub_;
+        ros::Publisher reached_pub_;
         tf::TransformListener listener_;
 
         cv::Rect roi_;
         cv::Mat_<uint8_t> og_, tg_, fg_, cropped_fg_;
-        cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, fg_rgb_, og_rgb_marked_;
-        cv::Point3i og_center_, new_goal, target_ext, start_ext;
+        cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, fg_rgb_;
+        cv::Point3i og_center_, target_ext, start_ext, current_point, new_goal;
+
         nav_msgs::MapMetaData info_;
         std::string frame_id_;
         std::string base_link_;
         std::vector<cv::Point3i> frontier;  
-        bool ready;
-        bool debug;
-        bool first_run;
-        double radius;   
+        bool ready, debug, first_run, start;
+        double radius, current_yaw;   
+        std_msgs::Bool Reached;
 
         typedef std::multimap<float, cv::Point3i> Heap;
 
@@ -61,7 +62,6 @@ class OccupancyGridPlanner {
 				tg_ = cv::Mat_<uint8_t>(og_.size(), 0x40);
 				fg_ = cv::Mat_<uint8_t>(og_.size(), 0xFF);
 				cv::cvtColor(fg_, fg_rgb_, CV_GRAY2RGB);
-				ROS_INFO("Tg_size (%i, %i)", msg->info.height, msg->info.width);
 				first_run=false;
 			}
             // Some variables to select the useful bounding box 
@@ -92,12 +92,11 @@ class OccupancyGridPlanner {
                     }
                 }
             }
-            
+            // Apply the dilation on obstacles (= erosion of black cells)
 			double dilation_size =radius/info_.resolution;
 			cv::Mat element = getStructuringElement( cv::MORPH_RECT,
 								   cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
 								   cv::Point( dilation_size, dilation_size ) );
-			// Apply the dilation on obstacles (= erosion of black cells)
 			cv::erode( og_, og_, element );
 			
             if (!ready) {
@@ -105,6 +104,7 @@ class OccupancyGridPlanner {
                 ROS_INFO("Received occupancy grid, ready to plan");
             }
 			
+			// Make og_rgb_ plotting obstacles in red
             //cv::cvtColor(og_, og_rgb_, CV_GRAY2RGB);
             std::vector<cv::Mat> images(3);
 			cv::Mat_<uint8_t> white = cv::Mat_<uint8_t>(og_.size(),0xFF);
@@ -129,7 +129,7 @@ class OccupancyGridPlanner {
 		}
 		
 		cv::Point point3iToPoint(const cv::Point3i & currPoint) {
-            return cv::Point(currPoint.x, currPoint.y);
+            return cv::Point(currPoint.y, currPoint.x);
 		}
         
         // This is called when a new goal is posted by RViz. We don't use a
@@ -165,11 +165,11 @@ class OccupancyGridPlanner {
                         pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
             
             if (!isInGrid(target)) {
-                ROS_INFO("Planning target: %.2f %.2f %.2f -> %d %d %d",
+                ROS_INFO("Planning target ourside the grid: %.2f %.2f %.2f -> %d %d %d",
                         pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
                 return;
             }
-            // Only accept target which are FREE in the grid (HW, Step 5). 
+            // Only accept target which are FREE in the grid 
             if (og_(point3iToPoint(target)) != FREE) {
                 ROS_ERROR("Invalid target point: occupancy = %d",og_(point3iToPoint(target)));
                 return;
@@ -190,7 +190,7 @@ class OccupancyGridPlanner {
             ROS_INFO("Planning origin %.2f %.2f %.2f -> %d %d %d",
                     transform.getOrigin().x(), transform.getOrigin().y(), s_yaw, start.x, start.y, start.z);
             if (!isInGrid(start)) {
-               ROS_INFO("Planning origin %.2f %.2f %.2f -> %d %d %d",
+               ROS_INFO("Planning origin outside the grid %.2f %.2f %.2f -> %d %d %d",
                     transform.getOrigin().x(), transform.getOrigin().y(), s_yaw, start.x, start.y, start.z);
                 return;
             }
@@ -214,7 +214,6 @@ class OccupancyGridPlanner {
             // is important. If we use 4-connexity, then we can use only the
             // first 4 values of the array. If we use 8-connexity we use the
             // full array.
-
 			cv::Point3i neighbours[8][5]={
 				{cv::Point3i( 1, 0,0), cv::Point3i( 1, 1,1), cv::Point3i( 1,-1,-1), cv::Point3i(0,0,1), cv::Point3i(0,0,-1)},
 				{cv::Point3i( 1, 1,0), cv::Point3i( 0, 1,1), cv::Point3i( 1, 0,-1), cv::Point3i(0,0,1), cv::Point3i(0,0,-1)},
@@ -248,34 +247,29 @@ class OccupancyGridPlanner {
                 heap.erase(hit);
                 // Now see where we can go from this_cell
                 for (unsigned int i=0;i<5;i++) {
-						//ROS_INFO("(%d) this cell (%d, %d, %d)", i, this_cell.x,this_cell.y,this_cell.z);
-						//ROS_INFO("(%d) neighbour (%d, %d, %d)", i,  neighbours[i][this_cell.z].x, neighbours[i][this_cell.z].y, neighbours[i][this_cell.z].z);
-						cv::Point3i dest = this_cell + neighbours[this_cell.z][i];
-						//ROS_INFO("(%d) dest (%d, %d, %d)", i, dest.x,dest.y,dest.z);
-						dest.z = dest.z %8;
-						if (!isInGrid(dest)) {
-							// outside the grid
-							continue;
-						}
-						uint8_t og = og_(point3iToPoint(dest));
-						if (og != FREE) {
-							// occupied or unknown
-							continue;
-						}
-						float cv = cell_value(dest.x,dest.y,dest.z);
-						float new_cost = this_cost + ((i%2)==0)?(cost[0][i]):(cost[1][i]);
-						//if (new_cost >= cv) ROS_INFO("(%d) cost %d >= %d", i, cv, new_cost);
-						//if (isnan(cv)) ROS_INFO("NaN (%d)  cost %d", i, cv);
+					cv::Point3i dest = this_cell + neighbours[this_cell.z][i];
+					dest.z = dest.z %8;
+					if (!isInGrid(dest)) {
+						// outside the grid
+						continue;
+					}
+					uint8_t og = og_(point3iToPoint(dest));
+					if (og != FREE) {
+						// occupied or unknown
+						continue;
+					}
+					float cv = cell_value(dest.x,dest.y,dest.z);
+					float new_cost = this_cost + ((i%2)==0)?(cost[0][i]):(cost[1][i]);
 
-						if (isnan(cv) || (new_cost < cv)) {
-							// found shortest path (or new path), updating the
-							// predecessor and the value of the cell
-							predecessor.at<cv::Vec3s>(dest.x,dest.y,dest.z) = cv::Vec3s(this_cell.x,this_cell.y,this_cell.z);
-							cell_value(dest.x,dest.y,dest.z)= new_cost;
-							// And insert the selected cells in the map.
-							heap.insert(Heap::value_type(new_cost+heuristic(dest,target),dest));
-							//ROS_INFO("dest (%d %d %d) to target (%d, %d, %d), cost %d",dest.x,dest.y,dest.z,target.x,target.y,target.z,new_cost+heuristic(dest,target));
-						}
+					if (isnan(cv) || (new_cost < cv)) {
+						// found shortest path (or new path), updating the
+						// predecessor and the value of the cell
+						predecessor.at<cv::Vec3s>(dest.x,dest.y,dest.z) = cv::Vec3s(this_cell.x,this_cell.y,this_cell.z);
+						cell_value(dest.x,dest.y,dest.z)= new_cost;
+						// And insert the selected cells in the map.
+						heap.insert(Heap::value_type(new_cost+heuristic(dest,target),dest));
+						//ROS_INFO("dest (%d %d %d) to target (%d, %d, %d), cost %d",dest.x,dest.y,dest.z,target.x,target.y,target.z,new_cost+heuristic(dest,target));
+					}
                 }
             }
             if (isnan(cell_value(target.x, target.y, target.z))) {
@@ -318,19 +312,16 @@ class OccupancyGridPlanner {
 		
 		// Callback for Treasure Grids
 		void tg_callback(const std_msgs::Float32 & msg) {
-						
 			if(!first_run){
 				// this gets the current pose in transform
 				tf::StampedTransform transform;
 				listener_.lookupTransform(frame_id_,base_link_, ros::Time(0), transform);
 				// Computing robot's actual position
-				cv::Point3i current_point;
-				double yaw = 0;
 				if (debug) {
 					current_point = og_center_;
 				} else {
-					yaw = tf::getYaw(transform.getRotation());
-					current_point = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(yaw / (M_PI/4))) % 8)
+					current_yaw = tf::getYaw(transform.getRotation());
+					current_point = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(current_yaw / (M_PI/4))) % 8)
 						+ og_center_;
 				}
 				// Plotting signal intensity on a circular area around the robot of radius r
@@ -366,7 +357,9 @@ class OccupancyGridPlanner {
 						}	
 					}
 				}
+				
 				frontier.erase( unique( frontier.begin(), frontier.end() ), frontier.end() );
+				
 				// The lines below are only for display
 				s = tg_.size();
 				unsigned int w = s.width;
@@ -379,8 +372,13 @@ class OccupancyGridPlanner {
 				cv::cvtColor(fg_, fg_rgb_, CV_GRAY2RGB);
 				fg_rgb_=fg_rgb_&tg_rgb_;
 				
+				for (int i=0; i<frontier.size(); i++){
+					fg_rgb_(frontier[i].x,frontier[i].y).val[1]=FREE;
+				}
+				
 				cv::circle(fg_rgb_,point3iToPoint(target_ext), 1, cv::Scalar(0,255,255));
-				cv::circle(fg_rgb_,point3iToPoint(start_ext), 1, cv::Scalar(0,255,0));
+				cv::circle(fg_rgb_,point3iToPoint(start_ext), 1, cv::Scalar(255,255,0));
+				cv::circle(fg_rgb_,point3iToPoint(new_goal), 1, cv::Scalar(0,125,0));
 
 				// Compute a sub-image that covers only the useful part of the
 				// grid.
@@ -401,53 +399,45 @@ class OccupancyGridPlanner {
 					
 				} else {
 					cv::imshow( "FrontierGrid", fg_rgb_ );
+					cv::imshow( "TreasureGrid", tg_rgb_ );
+					cv::imshow( "OccGrid", og_rgb_ );
 				}
+				//if(start){
+				//	start=false;
+				//	Reached.data = true;
+				//	reached_pub_.publish(Reached);
+				//}
 			}
 		}
 		
 		
 		// Callback for Treasure Grids
 		void reached_callback(const std_msgs::Bool & msg) {
-			if(!first_run){
-				std::vector<cv::Point3i> frontier_int=frontier;
-				
+			if(!first_run){				
 				geometry_msgs::PoseStamped goal_pose;	
-				
 				goal_pose.header.stamp = ros::Time::now();
 				goal_pose.header.frame_id = frame_id_;
-				//int RandIndex = 1;//rand() % frontier.size();
-				
+				// this gets the current pose in transform
 				tf::StampedTransform transform;
 				listener_.lookupTransform(frame_id_,base_link_, ros::Time(0), transform);
-				// Computing robot's actual position
-				cv::Point3i current_point;
-				double yaw = 0;
-				if (debug) {
-					current_point = og_center_;
-				} else {
-					yaw = tf::getYaw(transform.getRotation());
-					current_point = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(yaw / (M_PI/4))) % 8)
-						+ og_center_;
-				}
-				
-				
-				
 				
 				int idx=0;
-				float curr_scr,best_scr=hypot(frontier[0].x-current_point.x,frontier[0].y-current_point.y);//+atan2(frontier[0].y-current_point.y,frontier[0].x-current_point.y);;
-				curr_scr=best_scr;
-				for (int i=1; i<frontier.size(); i++){
+				float dpos, dtheta, curr_scr=0., best_scr= 1000000.;
+				for (int i=0; i<frontier.size(); i++){
+					dpos= hypot(frontier[i].x-current_point.x,frontier[i].y-current_point.y);
+					dtheta=current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.y);
+					curr_scr=1.0*dpos*dpos+100.0*dtheta;
 					if(curr_scr<best_scr){
 						best_scr=curr_scr;
-						idx=i-1;
+						idx=i;
 					}
-					curr_scr=hypot(frontier[i].x-current_point.x,frontier[i].y-current_point.y); //+atan2(frontier[i].y-og_center_.y,frontier[i].x-og_center_.y);
 				}
-						
-				new_goal =  frontier[idx] - og_center_;
-				goal_pose.pose.position.x = (new_goal.x) * info_.resolution;
-				goal_pose.pose.position.y = (new_goal.y) * info_.resolution;
-				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,M_PI/4);
+				
+				new_goal =  frontier[idx];
+				cv::Point3i new_goal_int =  frontier[idx] - og_center_;
+				goal_pose.pose.position.x = (new_goal_int.x) * info_.resolution;
+				goal_pose.pose.position.y = (new_goal_int.y) * info_.resolution;
+				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,0);
 				tf::quaternionTFToMsg(Q,goal_pose.pose.orientation);
 				target_pub_.publish(goal_pose);
 			}
@@ -455,7 +445,7 @@ class OccupancyGridPlanner {
 
 
     public:
-        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true) {
+        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), start(true) {
             nh_.param("base_frame",base_link_,std::string("/body"));
             nh_.param("debug",debug,false);
             nh_.param("radius",radius,0.2);
@@ -465,6 +455,7 @@ class OccupancyGridPlanner {
             reached_sub_= nh_.subscribe("goal_reached",1,&OccupancyGridPlanner::reached_callback,this);
             path_pub_ = nh_.advertise<nav_msgs::Path>("path",1,true);
             target_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("goal",1);
+            reached_pub_ = nh_.advertise<std_msgs::Bool>("goal_reached",1);
         }
 };
 

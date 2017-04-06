@@ -61,9 +61,9 @@ class PathFollower {
 		}
 		
 		void replanner_callback(const ros::TimerEvent& event){
+			ROS_INFO("Callback Timer triggered");
 			if(!Reached.data){
 				target_pub_.publish(goal);
-				ROS_INFO("Callback Timer triggered");
 			}
 		}
 
@@ -84,7 +84,7 @@ class PathFollower {
         }
         
     public:
-        PathFollower(): nh_("~") {
+        PathFollower(): nh_("~"){
             nh_.param("base_link",base_frame_,std::string("/body"));
             nh_.param("look_ahead",look_ahead_,1.0);
             nh_.param("Kx",Kx_,1.0);
@@ -111,7 +111,7 @@ class PathFollower {
         void run() {
             ros::Rate rate(20);
             ros::Time delay(0);
-            timer = nh_.createTimer(ros::Duration(15.0), &PathFollower::replanner_callback,this);
+            timer = nh_.createTimer(ros::Duration(10.0), &PathFollower::replanner_callback,this);
             timer.stop();
             while (ros::ok()) {
                 ros::spinOnce();
