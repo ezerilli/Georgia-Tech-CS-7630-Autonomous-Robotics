@@ -1,0 +1,19 @@
+<launch>
+
+    <node pkg="wpa_cli" type="wpa_cli_node.py" name="wpa_cli" output="screen">
+        <param name="scan_period" value="15.0"/>
+        <param name="update_period" value="2.0"/>
+        <param name="ignore_ssid" value="GTwireless,GTother"/>
+    </node>
+
+
+    <node pkg="wpa_cli" type="wpa_cli_log.py" name="wpa_log" output="screen">
+        <param name="log_directory" value="/tmp"/>
+        <param name="base_link" value="/body"/>
+        <param name="reference_frame" value="/world"/>
+        <remap from="/wpa_log/scan" to="/wpa_cli/scan"/>
+    </node>
+
+
+</launch>
+

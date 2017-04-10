@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+
+<launch>
+ <!-- Joystick node -->
+  <node respawn="true" pkg="joy" type="joy_node" name="robot_joy">
+    <param name="dev" type="string" value="/dev/input/js0"/>
+    <param name="deadzone" value="0.12"/>
+  </node>
+</launch>
