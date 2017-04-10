@@ -235,8 +235,8 @@ class OccupancyGridPlanner {
 				
             // Cost of displacement corresponding the neighbours. Diagonal
             // moves are 44% longer.
-            float cost[2][5] = {{       1, 20, 20, 80, 80},
-							     {sqrt(2), 20, 20, 80, 80}};
+            float cost[2][5] = {{       1, 40, 40, 80, 80},
+							     {2*sqrt(2), 40, 40, 80, 80}};
             
             // The core of Dijkstra's Algorithm, a sorted heap, where the first
             // element is always the closer to the start.
@@ -432,11 +432,24 @@ class OccupancyGridPlanner {
 				tf::StampedTransform transform;
 				listener_.lookupTransform(frame_id_,base_link_, ros::Time(0), transform);
 				
+				cv::Point3i current_point_here;
+				double current_yaw_here;
+				if (debug) {
+					current_point_here = og_center_;
+				} else {
+					current_yaw_here = tf::getYaw(transform.getRotation());
+					current_point_here = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(current_yaw_here / (M_PI/4))) % 8)
+						+ og_center_;
+				}
+				
 				int idx=0;
-				float dpos, dtheta, curr_scr=0., best_scr= 1000000.;
+				float dpos, dtheta_sig, dtheta, curr_scr=0., best_scr= 1000000.;
 				for (int i=0; i<frontier.size(); i++){
-					dpos= hypot(frontier[i].x-current_point.x,frontier[i].y-current_point.y);
-					dtheta=current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.y);
+					dpos= hypot(frontier[i].x-current_point_here.x,frontier[i].y-current_point_here.y);
+					
+					dtheta_sig=current_yaw_here-atan2(frontier[i].y-current_point_here.y,frontier[i].x-current_point_here.y);
+					dtheta=fabs(dtheta_sig);
+					
 					curr_scr=0.1*dpos*dpos+100.0*dtheta;
 					if(dpos>3*radius && curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 &&
 						og_rgb_(frontier[i].y-2,frontier[i].x+2).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x-2).val[0]!=0x00 && og_rgb_(frontier[i].y-2,frontier[i].x-2).val[0]!=0x00){
@@ -444,10 +457,18 @@ class OccupancyGridPlanner {
 						idx=i;
 					}
 				}
+				
+				
 				cv::Point3i new_goal =  frontier[idx] - og_center_;
+				
+				dtheta_sig=current_yaw_here-atan2(frontier[idx].y-current_point_here.y,frontier[idx].x-current_point_here.y);
+				cv::Point3i prova = cv::Point3i(new_goal.x, new_goal.y, (unsigned int)(round((dtheta_sig) / (M_PI/4))) %8)
+						+ og_center_;
+						
 				goal_pose.pose.position.x = (new_goal.x) * info_.resolution;
 				goal_pose.pose.position.y = (new_goal.y) * info_.resolution;
-				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,0);
+				ROS_ERROR("angolo arrivo = %.2f",(prova.z)*M_PI/4);
+				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,(prova.z)*M_PI/4);
 				tf::quaternionTFToMsg(Q,goal_pose.pose.orientation);
 				target_pub_.publish(goal_pose);
 			}

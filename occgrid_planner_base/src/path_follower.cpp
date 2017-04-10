@@ -40,6 +40,8 @@ class PathFollower {
         geometry_msgs::PoseStamped goal;
         ros::Timer timer;
         std_msgs::Bool Reached;
+        bool published_first;
+        int cnt;
 
         typedef std::map<double, occgrid_planner_base::TrajectoryElement> Trajectory;
 
@@ -84,7 +86,7 @@ class PathFollower {
         }
         
     public:
-        PathFollower(): nh_("~"){
+        PathFollower(): nh_("~"), published_first(false),cnt(0){
             nh_.param("base_link",base_frame_,std::string("/body"));
             nh_.param("look_ahead",look_ahead_,1.0);
             nh_.param("Kx",Kx_,1.0);
@@ -99,6 +101,7 @@ class PathFollower {
             target_sub_ = nh_.subscribe("goal",1,&PathFollower::target_callback,this);
             target_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("goal",1);
             reached_pub_ = nh_.advertise<std_msgs::Bool>("goal_reached",1);
+            
             
         };
             
@@ -134,14 +137,18 @@ class PathFollower {
                     if(error.x>0.5){
 						delay=delay+rate.cycleTime();
 					}
-                    if (final && (error.x < 0.1)) {
+                    if (final && (error.x < 0.05)) {
                         // Finished
                         twist.linear.x = 0.0;
                         twist.angular.z = 0.0;
                         Reached.data = true;
-                        reached_pub_.publish(Reached);
-                        ROS_INFO("Goal Reached!!");
-
+                        if(cnt<=2){
+							cnt++;
+							published_first=true;
+							reached_pub_.publish(Reached);
+							ROS_INFO("Goal Reached!!");
+						}
+						ROS_INFO("Finished, cnt = %i",cnt);
                     } else {				
                         twist.linear.x = it->second.twist.linear.x + Kx_ * error.x;
                         twist.linear.x = std::min(twist.linear.x,max_velocity_);
@@ -149,6 +156,9 @@ class PathFollower {
                         twist.angular.z = it->second.twist.angular.z + Ktheta_ * error.theta 
                             + Ky_*it->second.twist.linear.x*exp(-error.theta*error.theta)*error.y;
                         twist.angular.z = sat(twist.angular.z,max_rot_speed_);
+                        published_first=false;
+                        cnt=0;
+                        ROS_INFO("Not Finished, cnt = %i",cnt);
 
                         //printf("Twist: %.2f %.2f\n",twist.linear.x,twist.angular.z);
                     }
