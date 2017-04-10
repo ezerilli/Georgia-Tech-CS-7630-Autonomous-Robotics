@@ -37,7 +37,7 @@ class OccupancyGridPlanner {
         cv::Rect roi_;
         cv::Mat_<uint8_t> og_, tg_, fg_, cropped_fg_;
         cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, fg_rgb_;
-        cv::Point3i og_center_, target_ext, start_ext, current_point, new_goal;
+        cv::Point3i og_center_, target_ext, start_ext, current_point;
 
         nav_msgs::MapMetaData info_;
         std::string frame_id_;
@@ -129,6 +129,9 @@ class OccupancyGridPlanner {
 		}
 		
 		cv::Point point3iToPoint(const cv::Point3i & currPoint) {
+            return cv::Point(currPoint.x, currPoint.y);
+		}
+		cv::Point point3iToPointInv(const cv::Point3i & currPoint) {
             return cv::Point(currPoint.y, currPoint.x);
 		}
         
@@ -198,6 +201,11 @@ class OccupancyGridPlanner {
             // better to check
             if (og_(point3iToPoint(start)) != FREE) {
                 ROS_ERROR("Invalid start point: occupancy = %d",og_(point3iToPoint(start)));
+				for (int m=-2; m<3; m++){
+					for (int n=-2; n<3; n++){
+						og_(start.y+m,start.x+n)=FREE;
+					}	
+				}
                 return;
             }
             ROS_INFO("Starting planning from (%d, %d, %d) to (%d, %d, %d)",start.x,start.y,start.z, target.x, target.y, target.z);
@@ -227,8 +235,8 @@ class OccupancyGridPlanner {
 				
             // Cost of displacement corresponding the neighbours. Diagonal
             // moves are 44% longer.
-            float cost[2][5] = {{       1, 1, 1, 50, 50},
-							     {sqrt(2), 1, 1, 50, 50}};
+            float cost[2][5] = {{       1, 20, 20, 80, 80},
+							     {sqrt(2), 20, 20, 80, 80}};
             
             // The core of Dijkstra's Algorithm, a sorted heap, where the first
             // element is always the closer to the start.
@@ -333,7 +341,7 @@ class OccupancyGridPlanner {
 						intensity=(uint8_t)((signal+0.7)/1.7*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
 						 r = hypot(radius_point.x,radius_point.y);
-						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=5.) {
+						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=5) {
 							tg_(point3iToPoint(current_point+radius_point))= intensity;
 						}
 					} 
@@ -345,12 +353,12 @@ class OccupancyGridPlanner {
 				cv::Size s = tg_rgb_.size();
 				for (unsigned int j=0;j<s.height;j++) {
 					for (unsigned int i=0;i<s.width;i++) {
-						if (tg_rgb_(i,j).val[0]>0x40){
+						if (tg_rgb_(j,i).val[0]>0x40){
 							for (int m=-1; m<2; m++){
 								for (int n=-1; n<2; n++){
-									if (tg_rgb_(i+m,j+n).val[0]==0x40){
+									if (tg_rgb_(j+n,i+m).val[0]==0x40){
 										frontier.push_back(cv::Point3i(i,j,0));
-										fg_(i,j)=OCCUPIED;
+										fg_(j,i)=OCCUPIED;
 									}	
 								}
 							}			
@@ -373,12 +381,15 @@ class OccupancyGridPlanner {
 				fg_rgb_=fg_rgb_&tg_rgb_;
 				
 				for (int i=0; i<frontier.size(); i++){
-					fg_rgb_(frontier[i].x,frontier[i].y).val[1]=FREE;
+					fg_rgb_(point3iToPoint(frontier[i])).val[1]=FREE;
 				}
-				
-				cv::circle(fg_rgb_,point3iToPoint(target_ext), 1, cv::Scalar(0,255,255));
-				cv::circle(fg_rgb_,point3iToPoint(start_ext), 1, cv::Scalar(255,255,0));
-				cv::circle(fg_rgb_,point3iToPoint(new_goal), 1, cv::Scalar(0,125,0));
+				//cv::circle(fg_rgb_,point3iToPoint(target_ext), 1, cv::Scalar(0,125,0));
+				//cv::circle(fg_rgb_,point3iToPoint(start_ext), 1, cv::Scalar(255,255,0));
+				fg_rgb_(point3iToPoint(target_ext)).val[1]=0xFF;
+				fg_rgb_(point3iToPoint(target_ext)).val[2]=0xFF;
+
+				fg_rgb_(point3iToPoint(start_ext)).val[0]=0xFF;
+				fg_rgb_(point3iToPoint(start_ext)).val[1]=0xFF;
 
 				// Compute a sub-image that covers only the useful part of the
 				// grid.
@@ -399,14 +410,14 @@ class OccupancyGridPlanner {
 					
 				} else {
 					cv::imshow( "FrontierGrid", fg_rgb_ );
-					cv::imshow( "TreasureGrid", tg_rgb_ );
-					cv::imshow( "OccGrid", og_rgb_ );
+					//cv::imshow( "TreasureGrid", tg_rgb_ );
+					//cv::imshow( "OccGrid", og_rgb_ );
 				}
-				//if(start){
-				//	start=false;
-				//	Reached.data = true;
-				//	reached_pub_.publish(Reached);
-				//}
+				if(start){
+					start=false;
+					Reached.data = true;
+					reached_pub_.publish(Reached);
+				}
 			}
 		}
 		
@@ -426,17 +437,16 @@ class OccupancyGridPlanner {
 				for (int i=0; i<frontier.size(); i++){
 					dpos= hypot(frontier[i].x-current_point.x,frontier[i].y-current_point.y);
 					dtheta=current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.y);
-					curr_scr=1.0*dpos*dpos+100.0*dtheta;
-					if(curr_scr<best_scr){
+					curr_scr=0.1*dpos*dpos+100.0*dtheta;
+					if(dpos>3*radius && curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 &&
+						og_rgb_(frontier[i].y-2,frontier[i].x+2).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x-2).val[0]!=0x00 && og_rgb_(frontier[i].y-2,frontier[i].x-2).val[0]!=0x00){
 						best_scr=curr_scr;
 						idx=i;
 					}
 				}
-				
-				new_goal =  frontier[idx];
-				cv::Point3i new_goal_int =  frontier[idx] - og_center_;
-				goal_pose.pose.position.x = (new_goal_int.x) * info_.resolution;
-				goal_pose.pose.position.y = (new_goal_int.y) * info_.resolution;
+				cv::Point3i new_goal =  frontier[idx] - og_center_;
+				goal_pose.pose.position.x = (new_goal.x) * info_.resolution;
+				goal_pose.pose.position.y = (new_goal.y) * info_.resolution;
 				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,0);
 				tf::quaternionTFToMsg(Q,goal_pose.pose.orientation);
 				target_pub_.publish(goal_pose);
@@ -448,7 +458,7 @@ class OccupancyGridPlanner {
         OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), start(true) {
             nh_.param("base_frame",base_link_,std::string("/body"));
             nh_.param("debug",debug,false);
-            nh_.param("radius",radius,0.2);
+            nh_.param("radius",radius,0.3);
             og_sub_ = nh_.subscribe("occ_grid",1,&OccupancyGridPlanner::og_callback,this);
             target_sub_ = nh_.subscribe("goal",1,&OccupancyGridPlanner::target_callback,this);
             signal_sub_ = nh_.subscribe("signal",1,&OccupancyGridPlanner::tg_callback,this);
