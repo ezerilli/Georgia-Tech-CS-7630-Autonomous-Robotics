@@ -1,0 +1,41 @@
+<launch>
+    <node pkg="costmap_2d" type="costmap_2d_node" name="costmap" output="screen">
+        <rosparam file="$(find turtlebot_navigation)/param/costmap_common_params.yaml" command="load" ns="costmap/obstacle_layer" />
+        <param name="costmap/global_frame" value="ar_map"/>
+        <param name="costmap/robot_base_frame" value="base_link"/>
+        <param name="costmap/update_frequency" value="3.0"/>
+        <param name="costmap/publish_frequency" value="0.25"/>
+        <param name="costmap/static_map" value="false"/>
+        <param name="costmap/rolling_window" value="false"/>
+        <param name="costmap/obstacle_layer/raytrace_range" value="2.5"/>
+        <param name="costmap/width" value="60"/>
+        <param name="costmap/height" value="60"/>
+        <param name="costmap/resolution" value="0.05"/>
+        <param name="transform_tolerance" value="0.5"/>
+        <param name="costmap/publish_voxel_grid" value="true"/>
+        <param name="costmap/origin_x" value="-10"/>
+        <param name="costmap/origin_y" value="-40"/>
+        <param name="costmap/unknown_cost_value" value="-1"/>
+        <param name="costmap/track_unknown_space" value="true"/>
+	<param name="costmap/robot_radius" value="0.05"/>
+        <param name="costmap/obstacle_layer/observation_sources" value="klaser"/>
+        <param name="costmap/obstacle_layer/track_unknown_space" value="true"/>
+        <param name="costmap/obstacle_layer/unknown_cost_value" value="-1"/>
+        <param name="costmap/obstacle_layer/klaser/topic" value="/scan"/>
+        <param name="costmap/obstacle_layer/klaser/data_type" value="LaserScan"/>
+        <param name="costmap/obstacle_layer/klaser/clearing" value="true"/>
+        <param name="costmap/obstacle_layer/klaser/marking" value="true"/>
+        <param name="costmap/obstacle_layer/klaser/obstacle_range" value="5.0"/>
+        <param name="costmap/obstacle_layer/klaser/raytrace_range" value="5.0"/>
+        <!--
+             <param name="costmap/robot_radius" value="0.3"/>
+        <param name="costmap/footprint" value="[[0.3,0.3],[0.3,-0.3],[-0.3,-0.3],[-0.3,0.3]]"/>
+        <param name="costmap/width" value="30"/>
+        <param name="costmap/height" value="30"/>
+        <param name="costmap/origin_x" value="-15"/>
+        <param name="costmap/origin_y" value="-15"/>
+        <param name="costmap/resolution" value="0.05"/>
+        -->
+    </node>
+
+</launch>

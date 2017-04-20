@@ -1,0 +1,28 @@
+<launch>
+	<arg name="marker_size" default="19" />
+	<arg name="max_new_marker_error" default="0.08" />
+	<arg name="max_track_error" default="0.2" />
+	<arg name="cam_image_topic" default="/camera/rgb/image_color" />
+        <arg name="cam_info_topic" default="/camera/rgb/camera_info" />	
+        <arg name="output_frame" default="/camera_rgb_optical_frame" />
+	<node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame)" />
+
+
+    <node pkg="tb_slam" type="turtle_slam_singleids.py" name="slam" output="screen">
+        <param name="ignore_id" value="False"/>
+        <param name="target_frame" value="/ar_map"/>
+        <param name="odom_frame" value="/odom"/>
+        <param name="body_frame" value="/base_link"/>
+        <!-- Expected precision of wheel displacement measurement (in meter) -->
+        <param name="position_uncertainty" value="0.01"/>
+        <param name="angular_uncertainty" value="0.01"/>
+        <!-- Expected precision of ar_tag localisation (in meter) -->
+        <param name="ar_precision" value="0.10"/>
+        <!-- Initial value of X,Y,Theta -->
+        <param name="initial_x" value="0.0"/>
+        <param name="initial_y" value="0.0"/>
+        <param name="initial_theta" value="0.0"/>
+    </node>
+
+
+</launch>

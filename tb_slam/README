@@ -1,0 +1,16 @@
+
+To run ar_slam_base on the turtlebots, in four different terminal sessions, run:
+  >roslaunch turtlebot_bringup minimal.launch
+  >roslaunch turtlebot_bringup 3dsensor.launch
+  >roslaunch ar_slam_base turtle_slam.launch
+  >roslaunch ar_slam_base costmap.launch
+
+In RVIZ:
+  >Visualize the markers using "MarkerArray" with the topic /slam/landmarks
+  >Visualize the markers using "Marker" with the topic /visualization_marker
+  >Visualize the occupancy grid cost map using "Map" with the topic /costmap/costmap/costmap
+  >In Global Options, choose /ar_map as the fixed frame.
+
+In the costmap:
+  >100 = obstacle.
+  >All other values = free.

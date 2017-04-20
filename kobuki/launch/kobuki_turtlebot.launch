@@ -2,14 +2,34 @@
 
 <launch>
 
- <!-- Teloperation node -->
-  <param name="axis_linear" value="1" type="int"/>
-  <param name="axis_angular" value="0" type="int"/>
-  <param name="scale_linear" value="0.4" type="double"/>
-  <param name="scale_angular" value="1" type="double"/>
-  <node pkg="learning_joy" type="robot_teleop_joy" name="teleop"/>
+  <include file="$(find tb_slam)/launch/turtle_slam.launch"/> 
+  <include file="$(find tb_slam)/launch/costmap.launch"/>
+  <include file="$(find wpa_cli)/launch/wpa_cli.launch"/>
+  <include file="$(find wifi_scanner)/launch/planner.launch"/>
 
- <!-- Collision avoidance node -->
+
+ <!-- Teloperation node -->
+  
+  <node pkg="learning_joy" type="robot_teleop_joy" name="teleop">
+	  <param name="axis_linear" value="1" type="int"/>
+	  <param name="axis_angular" value="0" type="int"/>
+	  <param name="scale_linear" value="0.4" type="double"/>
+	  <param name="scale_angular" value="1" type="double"/>
+	  <remap from="/cmd_vel" to="/teleop/twistCommand"/>
+  </node>
+
+  <node pkg="vrep_ros_teleop" type="teleop_mux.py" name="teleop_mux">
+      <param name="joystick_button" value="0" type="int"/>
+      <param name="joystick_topic" value="/teleop/twistCommand"/>
+      <param name="auto_button" value="1" type="int"/>
+      <param name="auto_topic" value="/mux/autoCommand"/>
+      <remap from="/teleop_mux/joy" to="/joy"/>
+  </node>
+  
+  <node pkg="topic_tools" type="mux" name="cmd_mux" 
+      args="/obstacle_avoidance/command_velocity /teleop/twistCommand /mux/autoCommand">
+  </node>
+
   <node pkg="collision_avoidance" type="collision_avoidance" name="coll_avoid" output="screen">
       launch-prefix="xterm -e gdb --args"
       <param name="radius_max" value="1.2"/>
@@ -19,11 +39,7 @@
       <remap from="~cmd_vel" to="/cmd_vel"/>
       <remap from="~output_vel" to="/cmd_vel_mux/input/navi"/>
   </node>
-
- <!-- Pointcloud to Laserscan node -->
-  <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name ="pointcloud_to_laserscan_node" output="screen">
-	<remap from="cloud_in" to="/vrep/hokuyoSensor"/>
-  </node>
+ 
 
  <!-- Laserscan node -->
   <node pkg="laserscan_to_pc2" type="laserscan_to_pc2" name="lstopc2" output="screen">
@@ -32,28 +48,8 @@
       <remap from="~laser" to="/scan"/>
       <remap from="~scan" to="/scanpc"/>
   </node>
-  
- <!-- Gmapping node -->
-  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
-		<param name="base_frame" value="base_link"/>
-		<param name="odom_frame" value="odom"/>
-  </node>
-  
- <!-- WiFi node -->
-    <node pkg="wpa_cli" type="wpa_cli_node.py" name="wpa_cli" output="screen">
-        <param name="scan_period" value="15.0"/>
-        <param name="update_period" value="2.0"/>
-        <param name="ignore_ssid" value="GTwireless,GTother"/>
-    </node>
 
-
-    <node pkg="wpa_cli" type="wpa_cli_log.py" name="wpa_log" output="screen">
-        <param name="log_directory" value="/tmp"/>
-        <param name="base_link" value="/body"/>
-        <param name="reference_frame" value="/world"/>
-        <remap from="/wpa_log/scan" to="/wpa_cli/scan"/>
-    </node>
-<!--  
+<!--
   <node pkg="kobuki" type="kobuki_path" name="kobuki_path">
         <remap from="~odom" to="/odom"/>
         <remap from="~path" to="/KobukyPath"/>
