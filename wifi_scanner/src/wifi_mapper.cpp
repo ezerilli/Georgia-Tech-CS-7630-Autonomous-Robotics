@@ -369,7 +369,7 @@ class OccupancyGridPlanner {
 						intensity=(uint8_t)(signalf*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
 						 r = hypot(radius_point.x,radius_point.y);
-						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=11) {
+						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=10) {
 							tg_(point3iToPoint(current_point+radius_point))= intensity;
 						}
 					} 
@@ -466,22 +466,20 @@ class OccupancyGridPlanner {
 				tf::StampedTransform transform;
 				listener_.lookupTransform(frame_id_,base_link_, ros::Time(0), transform);
 				
-				cv::Point3i current_point_here;
-				double current_yaw_here;
 				if (debug) {
-					current_point_here = og_center_;
+					current_point = og_center_;
 				} else {
-					current_yaw_here = tf::getYaw(transform.getRotation());
-					current_point_here = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(current_yaw_here / (M_PI/4))) % 8)
+					current_yaw = tf::getYaw(transform.getRotation());
+					current_point = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(current_yaw / (M_PI/4))) % 8)
 						+ og_center_;
 				}
 				
 				int idx=0;
 				float dpos, dtheta_sig, dtheta, curr_scr=0., best_scr= 1000000.;
 				for (int i=0; i<frontier.size(); i++){
-					dpos= hypot(frontier[i].x-current_point_here.x,frontier[i].y-current_point_here.y);
+					dpos= hypot(frontier[i].x-current_point.x,frontier[i].y-current_point.y);
 					
-					dtheta_sig=current_yaw_here-atan2(frontier[i].y-current_point_here.y,frontier[i].x-current_point_here.y);
+					dtheta_sig=current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.y);
 					dtheta=fabs(dtheta_sig);
 					
 					curr_scr=0.1*dpos*dpos+100.0*dtheta;
@@ -492,10 +490,9 @@ class OccupancyGridPlanner {
 					}
 				}
 				
-				
 				cv::Point3i new_goal =  frontier[idx] - og_center_;
 				
-				dtheta_sig=current_yaw_here-atan2(frontier[idx].y-current_point_here.y,frontier[idx].x-current_point_here.y);
+				dtheta_sig=current_yaw-atan2(frontier[idx].y-current_point.y,frontier[idx].x-current_point.y);
 				cv::Point3i prova = cv::Point3i(new_goal.x, new_goal.y, (unsigned int)(round((dtheta_sig) / (M_PI/4))) %8)
 						+ og_center_;
 						

@@ -61,10 +61,10 @@ while not rospy.is_shutdown():
         n.level = int(col[2])
         n.flags = col[3]
         scan.networks.append(n)
-    if not scan_equals(scan,last_scan):
-        pub.publish(scan)
-        last_scan = scan
-        rospy.loginfo("Detected %d networks" % len(scan.networks))
+    #if not scan_equals(scan,last_scan):
+	pub.publish(scan)
+	last_scan = scan
+	#rospy.loginfo("Detected %d networks" % len(scan.networks))
     rospy.sleep(update_period)
 
 
