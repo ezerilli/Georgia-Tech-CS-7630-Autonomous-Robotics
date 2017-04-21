@@ -38,8 +38,8 @@ class OccupancyGridPlanner {
         tf::TransformListener listener_;
 
         cv::Rect roi_;
-        cv::Mat_<uint8_t> og_, tg_, fg_, cropped_fg_;
-        cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, fg_rgb_;
+        cv::Mat_<uint8_t> og_, tg_, fg_;
+        cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, fg_rgb_, cropped_og_, cropped_tg_, cropped_fg_;
         cv::Point3i og_center_, target_ext, start_ext, current_point;
 
         nav_msgs::MapMetaData info_;
@@ -47,7 +47,8 @@ class OccupancyGridPlanner {
         std::string base_link_;
         std::vector<cv::Point3i> frontier;  
         bool ready, debug, first_run, start;
-        double radius, current_yaw;   
+        double radius, current_yaw;  
+        int min_signal, max_signal; 
         std_msgs::Bool Reached;
 
         typedef std::multimap<float, cv::Point3i> Heap;
@@ -74,6 +75,13 @@ class OccupancyGridPlanner {
             for (unsigned int j=0;j<msg->info.height;j++) {
                 for (unsigned int i=0;i<msg->info.width;i++) {
                     int8_t v = msg->data[j*msg->info.width + i];
+                    if(v>92 && v<=100){
+						og_(j,i) = OCCUPIED;
+					} else {
+						og_(j,i) = FREE; 
+					}
+                    
+                    /*
                     switch (v) {
                         case 0: 
                             og_(j,i) = FREE; 
@@ -85,7 +93,8 @@ class OccupancyGridPlanner {
                         default:
                             og_(j,i) = FREE; 
                             break;
-                    }
+                    
+                    } */
                     // Update the bounding box of free or occupied cells.
                     if (og_(j,i) != UNKNOWN) {
                         minx = std::min(minx,i);
@@ -342,16 +351,25 @@ class OccupancyGridPlanner {
 						signal=msg->networks[i].level;
 					}
 				}
+				if(max_signal<signal){
+					max_signal=signal;
+				}
+				if(min_signal>signal){
+					min_signal=signal;
+				}
 				
-				float signalf=(signal+100)/100;
+				float signalf=(signal+88.0)/44.0;
+				ROS_INFO("Signal, Signalf = (%i, %.2f)",signal,signalf);
+				ROS_INFO("Max_Signal, Min_Signal = (%i, %.i)",max_signal,min_signal);
+
 				double r;
 				uint8_t intensity;
 				for(int i=10;i>=-10;i--){
 					for(int j=10;j>=-10;j--){
-						intensity=(uint8_t)((signalf+0.7)/1.7*FREE);
+						intensity=(uint8_t)(signalf*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
 						 r = hypot(radius_point.x,radius_point.y);
-						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=5) {
+						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=11) {
 							tg_(point3iToPoint(current_point+radius_point))= intensity;
 						}
 					} 
@@ -379,7 +397,7 @@ class OccupancyGridPlanner {
 				frontier.erase( unique( frontier.begin(), frontier.end() ), frontier.end() );
 				
 				// The lines below are only for display
-				s = tg_.size();
+				s = tg_rgb_.size();
 				unsigned int w = s.width;
 				unsigned int h = s.height;
 				roi_ = cv::Rect(0,0,w,h);
@@ -403,7 +421,9 @@ class OccupancyGridPlanner {
 
 				// Compute a sub-image that covers only the useful part of the
 				// grid.
-				cropped_fg_ = cv::Mat_<uint8_t>(fg_,roi_);
+				cropped_og_ = cv::Mat_<cv::Vec3b>(og_rgb_,roi_);
+				cropped_tg_ = cv::Mat_<cv::Vec3b>(tg_rgb_,roi_);
+				cropped_fg_ = cv::Mat_<cv::Vec3b>(fg_rgb_,roi_);
 				if ((w > WIN_SIZE) || (h > WIN_SIZE)) {
 					// The occupancy grid is too large to display. We need to scale
 					// it first.
@@ -414,14 +434,18 @@ class OccupancyGridPlanner {
 					} else {
 						new_size = cv::Size(WIN_SIZE*ratio,WIN_SIZE);
 					}
-					cv::Mat_<uint8_t> resized_fg;
+					cv::Mat_<cv::Vec3b> resized_og, resized_tg, resized_fg;
+					cv::resize(cropped_og_,resized_og,new_size);
+					cv::resize(cropped_tg_,resized_tg,new_size);
 					cv::resize(cropped_fg_,resized_fg,new_size);
-					//cv::imshow( "FrontierGrid", resized_fg );
+					//cv::imshow( "OccGrid", resized_og );
+					//cv::imshow( "TreasureGrid", resized_tg );
+					cv::imshow( "FrontierGrid", resized_fg );
 					
 				} else {
-					//cv::imshow( "FrontierGrid", fg_rgb_ );
-					//cv::imshow( "TreasureGrid", tg_rgb_ );
 					//cv::imshow( "OccGrid", og_rgb_ );
+					//cv::imshow( "TreasureGrid", tg_rgb_ );
+					cv::imshow( "FrontierGrid", fg_rgb_ );
 				}
 				if(start){
 					start=false;
@@ -486,8 +510,8 @@ class OccupancyGridPlanner {
 
 
     public:
-        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), start(true) {
-            nh_.param("base_frame",base_link_,std::string("/body"));
+        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), start(true), min_signal(0), max_signal(-100) {
+            nh_.param("base_frame",base_link_,std::string("/base_link"));
             nh_.param("debug",debug,false);
             nh_.param("radius",radius,0.3);
             og_sub_ = nh_.subscribe("occ_grid",1,&OccupancyGridPlanner::og_callback,this);

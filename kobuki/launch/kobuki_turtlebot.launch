@@ -32,7 +32,7 @@
   
    <!-- Collision avoidance node -->
   <node pkg="collision_avoidance" type="collision_avoidance" name="coll_avoid" output="screen">
-      <param name="radius_max" value="1.0"/>
+      <param name="radius_max" value="1.2"/>
       <param name="radius_min" value="0.50"/>
       <param name="alpha_max" value="20.0"/>
       <remap from="~scans" to="/scanpc"/>

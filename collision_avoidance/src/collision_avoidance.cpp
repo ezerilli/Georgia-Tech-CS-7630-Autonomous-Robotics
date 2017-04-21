@@ -43,7 +43,7 @@ class CollisionAvoidance {
              for (unsigned int i=0;i<n;i++) {
 				 x = lastpc[i].x;
                  y = lastpc[i].y;
-				 current_radius=sqrt(pow(x,2)+pow(y,2));
+				 current_radius=sqrt(x*x+y*y);
                  alpha = atan2(x,y)*180/M_PI;
 					
                  if (current_radius<radius && current_radius!=0.0 && alpha>90.0-alpha_max && alpha<90.0+alpha_max)

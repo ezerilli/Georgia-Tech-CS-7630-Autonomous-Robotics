@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <launch>
     <node pkg="costmap_2d" type="costmap_2d_node" name="costmap" output="screen">
         <rosparam file="$(find turtlebot_navigation)/param/costmap_common_params.yaml" command="load" ns="costmap/obstacle_layer" />
@@ -13,11 +14,11 @@
         <param name="costmap/resolution" value="0.05"/>
         <param name="transform_tolerance" value="0.5"/>
         <param name="costmap/publish_voxel_grid" value="true"/>
-        <param name="costmap/origin_x" value="-10"/>
-        <param name="costmap/origin_y" value="-40"/>
+        <param name="costmap/origin_x" value="-35"/>
+        <param name="costmap/origin_y" value="-30"/>
         <param name="costmap/unknown_cost_value" value="-1"/>
         <param name="costmap/track_unknown_space" value="true"/>
-	<param name="costmap/robot_radius" value="0.05"/>
+		<param name="costmap/robot_radius" value="0.05"/>
         <param name="costmap/obstacle_layer/observation_sources" value="klaser"/>
         <param name="costmap/obstacle_layer/track_unknown_space" value="true"/>
         <param name="costmap/obstacle_layer/unknown_cost_value" value="-1"/>

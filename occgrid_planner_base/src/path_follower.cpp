@@ -87,7 +87,7 @@ class PathFollower {
         
     public:
         PathFollower(): nh_("~"), published_first(false),cnt(0){
-            nh_.param("base_link",base_frame_,std::string("/body"));
+            nh_.param("base_link",base_frame_,std::string("/base_link"));
             nh_.param("look_ahead",look_ahead_,1.0);
             nh_.param("Kx",Kx_,1.0);
             nh_.param("Ky",Ky_,1.0);

@@ -46,7 +46,7 @@
       <param name="max_velocity" value="1.0"/>
       <param name="max_y_error" value="1.0"/>
       <param name="look_ahead" value="1.0"/>
-      <param name="base_frame" value="/body"/>
+      <param name="base_frame" value="/base_link"/>
       <remap from="/path_follower/traj" to="/path_optimizer/trajectory"/>
       <remap from="/path_follower/twistCommand" to="/obstacle_avoidance/command_velocity"/>
       <remap from="/path_follower/goal" to="/move_base_simple/goal"/>
