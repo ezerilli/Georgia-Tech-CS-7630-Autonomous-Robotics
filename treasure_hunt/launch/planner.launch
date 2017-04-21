@@ -3,8 +3,8 @@
 
  <!-- joy node -->
   <node respawn="true" pkg="joy" type="joy_node" name="joy" >
-    <!-- <param name="dev" type="string" value="/dev/input/js0" /> -->
-    <!-- <param name="deadzone" value="0.12" /> -->
+    <param name="dev" type="string" value="/dev/input/js0" /> 
+    <param name="deadzone" value="0.12" />
     <param name="autorepeat_rate" value="10.0" />
   </node>
 
@@ -28,6 +28,7 @@
     <node pkg="topic_tools" type="mux" name="cmd_mux" 
       args="/obstacle_avoidance/command_velocity /teleop/twistCommand /mux/autoCommand">
   </node>
+  
   
   <node pkg="obstacle_avoidance_base" type="obstacle_avoidance_base" name="obstacle_avoidance" output="screen">
 	   launch-prefix="xterm -e gdb --args"

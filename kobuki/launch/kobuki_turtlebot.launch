@@ -7,17 +7,17 @@
   <include file="$(find wpa_cli)/launch/wpa_cli.launch"/>
   <include file="$(find wifi_scanner)/launch/planner.launch"/>
 
-
  <!-- Teloperation node -->
   
   <node pkg="learning_joy" type="robot_teleop_joy" name="teleop">
 	  <param name="axis_linear" value="1" type="int"/>
-	  <param name="axis_angular" value="0" type="int"/>
-	  <param name="scale_linear" value="0.4" type="double"/>
-	  <param name="scale_angular" value="1" type="double"/>
-	  <remap from="/cmd_vel" to="/teleop/twistCommand"/>
+      <param name="axis_angular" value="0" type="int"/>
+      <param name="scale_linear" value="0.3" type="double"/>
+      <param name="scale_angular" value="1" type="double"/>
+      <remap from="~/cmd_vel" to="/teleop/twistCommand"/>
+      <remap from="~/joy" to="/joy"/>
   </node>
-
+  
   <node pkg="vrep_ros_teleop" type="teleop_mux.py" name="teleop_mux">
       <param name="joystick_button" value="0" type="int"/>
       <param name="joystick_topic" value="/teleop/twistCommand"/>
@@ -26,14 +26,14 @@
       <remap from="/teleop_mux/joy" to="/joy"/>
   </node>
   
-  <node pkg="topic_tools" type="mux" name="cmd_mux" 
-      args="/obstacle_avoidance/command_velocity /teleop/twistCommand /mux/autoCommand">
+    <node pkg="topic_tools" type="mux" name="cmd_mux" 
+      args="/cmd_vel /teleop/twistCommand /mux/autoCommand">
   </node>
-
+  
+   <!-- Collision avoidance node -->
   <node pkg="collision_avoidance" type="collision_avoidance" name="coll_avoid" output="screen">
-      launch-prefix="xterm -e gdb --args"
-      <param name="radius_max" value="1.2"/>
-      <param name="radius_min" value="0.5"/>
+      <param name="radius_max" value="1.0"/>
+      <param name="radius_min" value="0.50"/>
       <param name="alpha_max" value="20.0"/>
       <remap from="~scans" to="/scanpc"/>
       <remap from="~cmd_vel" to="/cmd_vel"/>
@@ -41,18 +41,12 @@
   </node>
  
 
- <!-- Laserscan node -->
+<!-- Laserscan node -->
   <node pkg="laserscan_to_pc2" type="laserscan_to_pc2" name="lstopc2" output="screen">
       launch-prefix="xterm -e gdb --args"
       <param name="base_frame" value="/base_link" />
       <remap from="~laser" to="/scan"/>
       <remap from="~scan" to="/scanpc"/>
   </node>
-
-<!--
-  <node pkg="kobuki" type="kobuki_path" name="kobuki_path">
-        <remap from="~odom" to="/odom"/>
-        <remap from="~path" to="/KobukyPath"/>
-  </node>
-	-->
+      
 </launch>

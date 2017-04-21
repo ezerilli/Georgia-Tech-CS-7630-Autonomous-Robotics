@@ -1,6 +1,7 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
+#include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_ros/point_cloud.h>
@@ -20,6 +21,7 @@ class ObstacleAvoidance {
     protected:
         ros::Subscriber scan_sub_;
         ros::Subscriber current_vel_sub_;
+        ros::Subscriber kobuki_vel_sub_;
         ros::Subscriber command_vel_sub_;
         ros::Publisher safe_vel_pub_;
         tf::TransformListener listener_;
@@ -89,6 +91,10 @@ class ObstacleAvoidance {
 
         void current_velocity_cb(const geometry_msgs::TwistStampedConstPtr msg) {
             current_velocity_ = msg->twist;
+        }
+        
+        void kobuki_velocity_cb(const nav_msgs::OdometryConstPtr msg) {
+            current_velocity_= msg->twist.twist;
         }
 
         void pc_callback(const sensor_msgs::PointCloud2ConstPtr msg) {
@@ -246,6 +252,7 @@ class ObstacleAvoidance {
             scan_sub_ = nh_.subscribe("scans",1,&ObstacleAvoidance::pc_callback,this);
             // scan_sub_ = nh_.subscribe("/vrep/hokuyoSensor",1,&ObstacleAvoidance::pc_callback,this);
             current_vel_sub_ = nh_.subscribe("current_velocity",1,&ObstacleAvoidance::current_velocity_cb,this);
+            kobuki_vel_sub_ = nh_.subscribe("kobuki_velocity",1,&ObstacleAvoidance::kobuki_velocity_cb,this);
             command_vel_sub_ = nh_.subscribe("command_velocity",1,&ObstacleAvoidance::command_velocity_cb,this);
             safe_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("output_velocity",1);
 

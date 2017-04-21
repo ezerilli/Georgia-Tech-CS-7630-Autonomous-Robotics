@@ -21,9 +21,7 @@ private:
 };
 
 
-TeleopRobot::TeleopRobot():
-  linear_(1),
-  angular_(2)
+TeleopRobot::TeleopRobot(): nh_("~"), linear_(1), angular_(2), a_scale_(0.0), l_scale_(0.0)
 {
   nh_.param("axis_linear", linear_, linear_);
   nh_.param("axis_angular", angular_, angular_);

@@ -16,6 +16,9 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Bool.h>
+#include <wpa_cli/Scan.h>
+#include <wpa_cli/Network.h>
+
 
 #define FREE 0xFF
 #define UNKNOWN 0x80
@@ -319,7 +322,7 @@ class OccupancyGridPlanner {
         }
 		
 		// Callback for Treasure Grids
-		void tg_callback(const std_msgs::Float32 & msg) {
+		void tg_callback(const wpa_cli::ScanConstPtr & msg) {
 			if(!first_run){
 				// this gets the current pose in transform
 				tf::StampedTransform transform;
@@ -333,12 +336,19 @@ class OccupancyGridPlanner {
 						+ og_center_;
 				}
 				// Plotting signal intensity on a circular area around the robot of radius r
-				float signal=msg.data;
+				int signal=-100;
+				for (int i=0; i<msg->networks.size();i++){
+					if(msg->networks[i].ssid=="GTwifi" && msg->networks[i].level>signal){
+						signal=msg->networks[i].level;
+					}
+				}
+				
+				float signalf=(signal+100)/100;
 				double r;
 				uint8_t intensity;
 				for(int i=10;i>=-10;i--){
 					for(int j=10;j>=-10;j--){
-						intensity=(uint8_t)((signal+0.7)/1.7*FREE);
+						intensity=(uint8_t)((signalf+0.7)/1.7*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
 						 r = hypot(radius_point.x,radius_point.y);
 						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=5) {
@@ -406,17 +416,17 @@ class OccupancyGridPlanner {
 					}
 					cv::Mat_<uint8_t> resized_fg;
 					cv::resize(cropped_fg_,resized_fg,new_size);
-					cv::imshow( "FrontierGrid", resized_fg );
+					//cv::imshow( "FrontierGrid", resized_fg );
 					
 				} else {
-					cv::imshow( "FrontierGrid", fg_rgb_ );
+					//cv::imshow( "FrontierGrid", fg_rgb_ );
 					//cv::imshow( "TreasureGrid", tg_rgb_ );
 					//cv::imshow( "OccGrid", og_rgb_ );
 				}
 				if(start){
 					start=false;
 					Reached.data = true;
-					reached_pub_.publish(Reached);
+					//reached_pub_.publish(Reached);
 				}
 			}
 		}
