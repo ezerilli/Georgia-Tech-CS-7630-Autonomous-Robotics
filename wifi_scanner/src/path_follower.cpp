@@ -55,8 +55,8 @@ class PathFollower {
         }
         
         void target_callback(const geometry_msgs::PoseStampedConstPtr & msg) {
-			goal=*msg;
-			timer.start();
+             goal=*msg;
+             timer.start();
 		}
 		
 		void replanner_callback(const ros::TimerEvent& event){
@@ -76,13 +76,13 @@ class PathFollower {
             result.x = error.pose.position.x;
             result.y = error.pose.position.y;
             result.theta = tf::getYaw(error.pose.orientation);
-            //ROS_INFO("Current error: %+6.2f %+6.2f %+6.2f\n",result.x,result.y,result.theta*180./M_PI);
+            //printf("Current error: %+6.2f %+6.2f %+6.2f\n",result.x,result.y,result.theta*180./M_PI);
             return result;
         }
         
     public:
         PathFollower(): nh_("~"){
-            nh_.param("base_link",base_frame_,std::string("/body"));
+            nh_.param("base_link",base_frame_,std::string("/base_link"));
             nh_.param("look_ahead",look_ahead_,1.0);
             nh_.param("Kx",Kx_,1.0);
             nh_.param("Ky",Ky_,1.0);
@@ -96,6 +96,8 @@ class PathFollower {
             target_sub_ = nh_.subscribe("goal",1,&PathFollower::target_callback,this);
             target_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("goal",1);
             reached_pub_ = nh_.advertise<std_msgs::Header>("goal_reached",1);
+            
+            
         };
             
         inline double sat(double x, double max_x) {
@@ -144,7 +146,7 @@ class PathFollower {
                         reached.frame_id = frame_id_;
 						reached_pub_.publish(reached);
 						ROS_INFO("Goal Reached!!  Error = %.2f", error.x);
-                    } else {	
+                    } else {				
                         twist.linear.x = it->second.twist.linear.x + Kx_ * error.x;
                         twist.linear.x = std::min(twist.linear.x,max_velocity_);
                         error.y = sat(error.y,max_y_error_);

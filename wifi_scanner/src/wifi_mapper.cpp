@@ -15,15 +15,19 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float32.h>
-#include <std_msgs/Bool.h>
 #include <wpa_cli/Scan.h>
 #include <wpa_cli/Network.h>
+#include <smart_battery_msgs/SmartBatteryStatus.h>
+
+
 
 
 #define FREE 0xFF
 #define UNKNOWN 0x80
 #define OCCUPIED 0x00
-#define WIN_SIZE 800
+#define WIN_WSIZE 1000
+#define WIN_HSIZE 700
+
 
 class OccupancyGridPlanner {
     protected:
@@ -32,6 +36,7 @@ class OccupancyGridPlanner {
         ros::Subscriber target_sub_;
         ros::Subscriber signal_sub_;
         ros::Subscriber reached_sub_;
+        ros::Subscriber battery_sub_;
         ros::Publisher path_pub_;
         ros::Publisher target_pub_;
         ros::Publisher reached_pub_;
@@ -46,10 +51,10 @@ class OccupancyGridPlanner {
         std::string frame_id_;
         std::string base_link_;
         std::vector<cv::Point3i> frontier;  
-        bool ready, debug, first_run, start;
+        bool ready, debug, first_run, first_target;
         double radius, current_yaw;  
-        int min_signal, max_signal; 
-        std_msgs::Bool Reached;
+        int min_signal, max_signal, battery_charge, battery_threeshold; 
+        std_msgs::Header reached;
 
         typedef std::multimap<float, cv::Point3i> Heap;
 
@@ -75,26 +80,12 @@ class OccupancyGridPlanner {
             for (unsigned int j=0;j<msg->info.height;j++) {
                 for (unsigned int i=0;i<msg->info.width;i++) {
                     int8_t v = msg->data[j*msg->info.width + i];
-                    if(v>92 && v<=100){
+                    if(v>95 && v<=100){
 						og_(j,i) = OCCUPIED;
 					} else {
 						og_(j,i) = FREE; 
 					}
                     
-                    /*
-                    switch (v) {
-                        case 0: 
-                            og_(j,i) = FREE; 
-                            break;
-                        case 100: 
-                            og_(j,i) = OCCUPIED; 
-                            break;
-                        case -1: 
-                        default:
-                            og_(j,i) = FREE; 
-                            break;
-                    
-                    } */
                     // Update the bounding box of free or occupied cells.
                     if (og_(j,i) != UNKNOWN) {
                         minx = std::min(minx,i);
@@ -143,9 +134,6 @@ class OccupancyGridPlanner {
 		cv::Point point3iToPoint(const cv::Point3i & currPoint) {
             return cv::Point(currPoint.x, currPoint.y);
 		}
-		cv::Point point3iToPointInv(const cv::Point3i & currPoint) {
-            return cv::Point(currPoint.y, currPoint.x);
-		}
         
         // This is called when a new goal is posted by RViz. We don't use a
         // mutex here, because it can only be called in spinOnce.
@@ -174,7 +162,13 @@ class OccupancyGridPlanner {
             double t_yaw = tf::getYaw(pose.pose.orientation);
             cv::Point3i target = cv::Point3i(pose.pose.position.x / info_.resolution, pose.pose.position.y / info_.resolution, (unsigned int)(round(t_yaw / (M_PI/4))) % 8)
 					+ og_center_;
-            target_ext=target;    
+            target_ext=target;  
+            
+            if(battery_charge<=battery_threeshold){
+				target= cv::Point3i(0, 0, 0)
+					+ og_center_;
+				target_ext=target;  
+			}  
                 
             ROS_INFO("Planning target: %.2f %.2f %.2f -> %d %d %d",
                         pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
@@ -247,8 +241,9 @@ class OccupancyGridPlanner {
 				
             // Cost of displacement corresponding the neighbours. Diagonal
             // moves are 44% longer.
-            float cost[2][5] = {{       1, 40, 40, 80, 80},
-							     {2*sqrt(2), 40, 40, 80, 80}};
+			float cost[2][5] = {{      1, 2*sqrt(2), 2, 10, 10},
+							    {sqrt(2), 		  2, 2, 10, 10}};
+            
             
             // The core of Dijkstra's Algorithm, a sorted heap, where the first
             // element is always the closer to the start.
@@ -268,7 +263,7 @@ class OccupancyGridPlanner {
                 // Now see where we can go from this_cell
                 for (unsigned int i=0;i<5;i++) {
 					cv::Point3i dest = this_cell + neighbours[this_cell.z][i];
-					dest.z = dest.z %8;
+					dest.z = (dest.z+8)%8;
 					if (!isInGrid(dest)) {
 						// outside the grid
 						continue;
@@ -279,7 +274,7 @@ class OccupancyGridPlanner {
 						continue;
 					}
 					float cv = cell_value(dest.x,dest.y,dest.z);
-					float new_cost = this_cost + ((i%2)==0)?(cost[0][i]):(cost[1][i]);
+					float new_cost = this_cost + ((dest.z&1)?(cost[0][i]):(cost[1][i]));
 
 					if (isnan(cv) || (new_cost < cv)) {
 						// found shortest path (or new path), updating the
@@ -301,10 +296,16 @@ class OccupancyGridPlanner {
             // Now extract the path by starting from goal and going through the
             // predecessors until the starting point
             std::list<cv::Point3i> lpath;
+            int num_iter=0;
             while (target != start) {
                 lpath.push_front(target);
                 cv::Vec3s p = predecessor(target.x, target.y, target.z);
                 target.x = p[0]; target.y = p[1], target.z=p[2];
+                if (num_iter>10000000){
+					ROS_ERROR("Ho buggato");
+					return;
+				}		
+				num_iter++;
             }
             lpath.push_front(start);
             // Finally create a ROS path message
@@ -358,9 +359,16 @@ class OccupancyGridPlanner {
 					min_signal=signal;
 				}
 				
-				float signalf=(signal+88.0)/44.0;
-				ROS_INFO("Signal, Signalf = (%i, %.2f)",signal,signalf);
-				ROS_INFO("Max_Signal, Min_Signal = (%i, %.i)",max_signal,min_signal);
+				// Scaling calculus
+				// -40+x=y
+				// -85+x=0.3*y
+				//  45  =0.7*y => y=64, x=104
+				
+				float signalf=(signal+104.0)/64.0;								
+				float max_signalf=(max_signal+104.0)/64.0;	
+				float min_signalf=(min_signal+104.0)/64.0;	
+				ROS_INFO("Signal = %i (%.2f)",signal,signalf);
+				ROS_INFO("Max_Signal, Min_Signal = (%i = %.2f, %.i = %.2f)",max_signal, max_signalf, min_signal, min_signalf);
 
 				double r;
 				uint8_t intensity;
@@ -369,7 +377,7 @@ class OccupancyGridPlanner {
 						intensity=(uint8_t)(signalf*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
 						 r = hypot(radius_point.x,radius_point.y);
-						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=10) {
+						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=7) {
 							tg_(point3iToPoint(current_point+radius_point))= intensity;
 						}
 					} 
@@ -424,15 +432,15 @@ class OccupancyGridPlanner {
 				cropped_og_ = cv::Mat_<cv::Vec3b>(og_rgb_,roi_);
 				cropped_tg_ = cv::Mat_<cv::Vec3b>(tg_rgb_,roi_);
 				cropped_fg_ = cv::Mat_<cv::Vec3b>(fg_rgb_,roi_);
-				if ((w > WIN_SIZE) || (h > WIN_SIZE)) {
+				if ((w > WIN_WSIZE) || (h > WIN_HSIZE)) {
 					// The occupancy grid is too large to display. We need to scale
 					// it first.
 					double ratio = w / ((double)h);
 					cv::Size new_size;
 					if (ratio >= 1) {
-						new_size = cv::Size(WIN_SIZE,WIN_SIZE/ratio);
+						new_size = cv::Size(WIN_WSIZE,WIN_HSIZE/ratio);
 					} else {
-						new_size = cv::Size(WIN_SIZE*ratio,WIN_SIZE);
+						new_size = cv::Size(WIN_WSIZE*ratio,WIN_HSIZE);
 					}
 					cv::Mat_<cv::Vec3b> resized_og, resized_tg, resized_fg;
 					cv::resize(cropped_og_,resized_og,new_size);
@@ -447,18 +455,20 @@ class OccupancyGridPlanner {
 					//cv::imshow( "TreasureGrid", tg_rgb_ );
 					cv::imshow( "FrontierGrid", fg_rgb_ );
 				}
-				if(start){
-					start=false;
-					Reached.data = true;
-					//reached_pub_.publish(Reached);
+				if(first_target) {
+					first_target=false;
+					reached.stamp = ros::Time::now();
+                    reached.frame_id = frame_id_;
+					reached_pub_.publish(reached);
 				}
 			}
 		}
 		
 		
-		// Callback for Treasure Grids
-		void reached_callback(const std_msgs::Bool & msg) {
-			if(!first_run){				
+		// Callback for Exploration
+		void reached_callback(const std_msgs::Header & msg) {
+			if(!first_run){	
+				ROS_ERROR("Reached callback called!");			
 				geometry_msgs::PoseStamped goal_pose;	
 				goal_pose.header.stamp = ros::Time::now();
 				goal_pose.header.frame_id = frame_id_;
@@ -475,49 +485,57 @@ class OccupancyGridPlanner {
 				}
 				
 				int idx=0;
-				float dpos, dtheta_sig, dtheta, curr_scr=0., best_scr= 1000000.;
+				float dpos, dtheta, curr_scr=0., best_scr= 1000000.;
 				for (int i=0; i<frontier.size(); i++){
 					dpos= hypot(frontier[i].x-current_point.x,frontier[i].y-current_point.y);
+					dtheta=fabs(current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.x));
 					
-					dtheta_sig=current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.y);
-					dtheta=fabs(dtheta_sig);
-					
-					curr_scr=0.1*dpos*dpos+100.0*dtheta;
-					if(dpos>3*radius && curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 &&
-						og_rgb_(frontier[i].y-2,frontier[i].x+2).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x-2).val[0]!=0x00 && og_rgb_(frontier[i].y-2,frontier[i].x-2).val[0]!=0x00){
+					curr_scr=0.01*dpos*dpos+10000.0*dtheta;
+					if(dpos>3.0 && curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 && 
+					   og_rgb_(frontier[i].y-2,frontier[i].x+2).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x-2).val[0]!=0x00 && og_rgb_(frontier[i].y-2,frontier[i].x-2).val[0]!=0x00){
+						
 						best_scr=curr_scr;
 						idx=i;
 					}
 				}
 				
-				cv::Point3i new_goal =  frontier[idx] - og_center_;
-				
-				dtheta_sig=current_yaw-atan2(frontier[idx].y-current_point.y,frontier[idx].x-current_point.y);
-				cv::Point3i prova = cv::Point3i(new_goal.x, new_goal.y, (unsigned int)(round((dtheta_sig) / (M_PI/4))) %8)
-						+ og_center_;
-						
-				goal_pose.pose.position.x = (new_goal.x) * info_.resolution;
-				goal_pose.pose.position.y = (new_goal.y) * info_.resolution;
-				ROS_ERROR("angolo arrivo = %.2f",(prova.z)*M_PI/4);
-				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,(prova.z)*M_PI/4);
-				tf::quaternionTFToMsg(Q,goal_pose.pose.orientation);
-				target_pub_.publish(goal_pose);
+				if(best_scr!=1000000.){
+					ROS_ERROR("BEST FOUND! Score = %.2f", best_scr);
+					cv::Point3i new_goal =  frontier[idx] - og_center_;						
+					goal_pose.pose.position.x = (new_goal.x) * info_.resolution;
+					goal_pose.pose.position.y = (new_goal.y) * info_.resolution;
+					tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,atan2(frontier[idx].y-current_point.y,frontier[idx].x-current_point.x));
+					tf::quaternionTFToMsg(Q,goal_pose.pose.orientation);
+					target_pub_.publish(goal_pose);
+				} else {
+					ROS_ERROR("BEST NOT FOUND!");
+				}
 			}
+			
+			
+		}
+		
+		// Callback for Battery Management
+		void battery_callback(const smart_battery_msgs::SmartBatteryStatusConstPtr & msg) {
+			battery_charge= msg->percentage;
+			ROS_INFO("Battery Level is %i percent", battery_charge);
 		}
 
 
     public:
-        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), start(true), min_signal(0), max_signal(-100) {
+        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), first_target(true), min_signal(0), max_signal(-100) , battery_charge(100){
             nh_.param("base_frame",base_link_,std::string("/base_link"));
             nh_.param("debug",debug,false);
-            nh_.param("radius",radius,0.3);
+            nh_.param("radius",radius,0.25);
+            nh_.param("battery_threeshold",battery_threeshold,20);
             og_sub_ = nh_.subscribe("occ_grid",1,&OccupancyGridPlanner::og_callback,this);
             target_sub_ = nh_.subscribe("goal",1,&OccupancyGridPlanner::target_callback,this);
             signal_sub_ = nh_.subscribe("signal",1,&OccupancyGridPlanner::tg_callback,this);
             reached_sub_= nh_.subscribe("goal_reached",1,&OccupancyGridPlanner::reached_callback,this);
+            battery_sub_= nh_.subscribe("battery_charge",1,&OccupancyGridPlanner::battery_callback,this);
             path_pub_ = nh_.advertise<nav_msgs::Path>("path",1,true);
             target_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("goal",1);
-            reached_pub_ = nh_.advertise<std_msgs::Bool>("goal_reached",1);
+            reached_pub_ = nh_.advertise<std_msgs::Header>("goal_reached",1);
         }
 };
 

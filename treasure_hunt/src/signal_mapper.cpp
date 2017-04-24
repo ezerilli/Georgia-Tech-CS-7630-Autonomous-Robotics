@@ -43,9 +43,9 @@ class OccupancyGridPlanner {
         std::string frame_id_;
         std::string base_link_;
         std::vector<cv::Point3i> frontier;  
-        bool ready, debug, first_run, start;
+        bool ready, debug, first_run, first_target;
         double radius, current_yaw;   
-        std_msgs::Bool Reached;
+        std_msgs::Header reached;
 
         typedef std::multimap<float, cv::Point3i> Heap;
 
@@ -131,9 +131,6 @@ class OccupancyGridPlanner {
 		cv::Point point3iToPoint(const cv::Point3i & currPoint) {
             return cv::Point(currPoint.x, currPoint.y);
 		}
-		cv::Point point3iToPointInv(const cv::Point3i & currPoint) {
-            return cv::Point(currPoint.y, currPoint.x);
-		}
         
         // This is called when a new goal is posted by RViz. We don't use a
         // mutex here, because it can only be called in spinOnce.
@@ -168,7 +165,7 @@ class OccupancyGridPlanner {
                         pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
             
             if (!isInGrid(target)) {
-                ROS_INFO("Planning target ourside the grid: %.2f %.2f %.2f -> %d %d %d",
+                ROS_ERROR("Planning target outside the grid: %.2f %.2f %.2f -> %d %d %d",
                         pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
                 return;
             }
@@ -193,7 +190,7 @@ class OccupancyGridPlanner {
             ROS_INFO("Planning origin %.2f %.2f %.2f -> %d %d %d",
                     transform.getOrigin().x(), transform.getOrigin().y(), s_yaw, start.x, start.y, start.z);
             if (!isInGrid(start)) {
-               ROS_INFO("Planning origin outside the grid %.2f %.2f %.2f -> %d %d %d",
+               ROS_ERROR("Planning origin outside the grid %.2f %.2f %.2f -> %d %d %d",
                     transform.getOrigin().x(), transform.getOrigin().y(), s_yaw, start.x, start.y, start.z);
                 return;
             }
@@ -201,14 +198,16 @@ class OccupancyGridPlanner {
             // better to check
             if (og_(point3iToPoint(start)) != FREE) {
                 ROS_ERROR("Invalid start point: occupancy = %d",og_(point3iToPoint(start)));
-				for (int m=-2; m<3; m++){
-					for (int n=-2; n<3; n++){
+				for (int m=-1; m<2; m++){
+					for (int n=-1; n<2; n++){
 						og_(start.y+m,start.x+n)=FREE;
 					}	
 				}
-                return;
+                //return;
             }
+            
             ROS_INFO("Starting planning from (%d, %d, %d) to (%d, %d, %d)",start.x,start.y,start.z, target.x, target.y, target.z);
+			
             // Here the Dijskstra algorithm starts 
             // The best distance to the goal computed so far. This is
             // initialised with Not-A-Number. 
@@ -235,8 +234,8 @@ class OccupancyGridPlanner {
 				
             // Cost of displacement corresponding the neighbours. Diagonal
             // moves are 44% longer.
-            float cost[2][5] = {{       1, 40, 40, 80, 80},
-							     {2*sqrt(2), 40, 40, 80, 80}};
+            float cost[2][5] = {{       1, 2*sqrt(2), 2, 10, 10},
+							     {sqrt(2), 		   2, 2, 10, 10}};
             
             // The core of Dijkstra's Algorithm, a sorted heap, where the first
             // element is always the closer to the start.
@@ -256,7 +255,7 @@ class OccupancyGridPlanner {
                 // Now see where we can go from this_cell
                 for (unsigned int i=0;i<5;i++) {
 					cv::Point3i dest = this_cell + neighbours[this_cell.z][i];
-					dest.z = dest.z %8;
+					dest.z = (dest.z+8)%8;
 					if (!isInGrid(dest)) {
 						// outside the grid
 						continue;
@@ -267,7 +266,7 @@ class OccupancyGridPlanner {
 						continue;
 					}
 					float cv = cell_value(dest.x,dest.y,dest.z);
-					float new_cost = this_cost + ((i%2)==0)?(cost[0][i]):(cost[1][i]);
+					float new_cost = this_cost + ((dest.z&1)?(cost[0][i]):(cost[1][i]));
 
 					if (isnan(cv) || (new_cost < cv)) {
 						// found shortest path (or new path), updating the
@@ -286,13 +285,20 @@ class OccupancyGridPlanner {
                 return;
             }
             ROS_INFO("Planning completed");
+
             // Now extract the path by starting from goal and going through the
             // predecessors until the starting point
             std::list<cv::Point3i> lpath;
+            int num_iter=0;
             while (target != start) {
                 lpath.push_front(target);
                 cv::Vec3s p = predecessor(target.x, target.y, target.z);
                 target.x = p[0]; target.y = p[1], target.z=p[2];
+                if (num_iter>10000000){
+					ROS_ERROR("Ho buggato");
+					return;
+				}		
+				num_iter++;
             }
             lpath.push_front(start);
             // Finally create a ROS path message
@@ -346,7 +352,6 @@ class OccupancyGridPlanner {
 						}
 					} 
 				}
-				
 				// Computing the frontier known/unknown
 				frontier.clear();
 				fg_ = cv::Mat_<uint8_t>(og_.size(), 0xFF);
@@ -413,18 +418,21 @@ class OccupancyGridPlanner {
 					//cv::imshow( "TreasureGrid", tg_rgb_ );
 					//cv::imshow( "OccGrid", og_rgb_ );
 				}
-				if(start){
-					start=false;
-					Reached.data = true;
-					reached_pub_.publish(Reached);
+				
+				if(first_target) {
+					first_target=false;
+					reached.stamp = ros::Time::now();
+                    reached.frame_id = frame_id_;
+					reached_pub_.publish(reached);
 				}
-			}
+			} 
 		}
 		
 		
-		// Callback for Treasure Grids
-		void reached_callback(const std_msgs::Bool & msg) {
-			if(!first_run){				
+		// Callback for Exploration
+		void reached_callback(const std_msgs::Header & msg) {
+			ROS_ERROR("Reached callback called!");
+			if(!first_run){	
 				geometry_msgs::PoseStamped goal_pose;	
 				goal_pose.header.stamp = ros::Time::now();
 				goal_pose.header.frame_id = frame_id_;
@@ -432,43 +440,41 @@ class OccupancyGridPlanner {
 				tf::StampedTransform transform;
 				listener_.lookupTransform(frame_id_,base_link_, ros::Time(0), transform);
 				
-				cv::Point3i current_point_here;
-				double current_yaw_here;
+
 				if (debug) {
-					current_point_here = og_center_;
+					current_point = og_center_;
 				} else {
-					current_yaw_here = tf::getYaw(transform.getRotation());
-					current_point_here = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(current_yaw_here / (M_PI/4))) % 8)
+					current_yaw = tf::getYaw(transform.getRotation());
+					current_point = cv::Point3i(transform.getOrigin().x() / info_.resolution, transform.getOrigin().y() / info_.resolution, (unsigned int)(round(current_yaw / (M_PI/4))) % 8)
 						+ og_center_;
 				}
 				
 				int idx=0;
-				float dpos, dtheta_sig, dtheta, curr_scr=0., best_scr= 1000000.;
+				float dpos, dtheta, curr_scr=0., best_scr= 1000000.;
 				for (int i=0; i<frontier.size(); i++){
-					dpos= hypot(frontier[i].x-current_point_here.x,frontier[i].y-current_point_here.y);
+					dpos= hypot(frontier[i].x-current_point.x,frontier[i].y-current_point.y);
+					dtheta=fabs(current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.x));
 					
-					dtheta_sig=current_yaw_here-atan2(frontier[i].y-current_point_here.y,frontier[i].x-current_point_here.y);
-					dtheta=fabs(dtheta_sig);
-					
-					curr_scr=0.1*dpos*dpos+100.0*dtheta;
-					if(dpos>3*radius && curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 &&
-						og_rgb_(frontier[i].y-2,frontier[i].x+2).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x-2).val[0]!=0x00 && og_rgb_(frontier[i].y-2,frontier[i].x-2).val[0]!=0x00){
-						best_scr=curr_scr;
-						idx=i;
+					curr_scr=0.01*dpos*dpos+10000.0*dtheta;
+					if(curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 && 
+					       og_rgb_(frontier[i].y-2,frontier[i].x+2).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x-2).val[0]!=0x00 && og_rgb_(frontier[i].y-2,frontier[i].x-2).val[0]!=0x00){
+						if(dpos>3.0){
+							best_scr=curr_scr;
+							idx=i;
+						}	
 					}
 				}
 				
+				if(best_scr!=1000000.){
+					ROS_ERROR("BEST FOUND! Score = %.2f", best_scr);
+				} else {
+					ROS_ERROR("BEST NOT FOUND!");
+				}
 				
-				cv::Point3i new_goal =  frontier[idx] - og_center_;
-				
-				dtheta_sig=current_yaw_here-atan2(frontier[idx].y-current_point_here.y,frontier[idx].x-current_point_here.y);
-				cv::Point3i prova = cv::Point3i(new_goal.x, new_goal.y, (unsigned int)(round((dtheta_sig) / (M_PI/4))) %8)
-						+ og_center_;
-						
+				cv::Point3i new_goal =  frontier[idx] - og_center_;						
 				goal_pose.pose.position.x = (new_goal.x) * info_.resolution;
 				goal_pose.pose.position.y = (new_goal.y) * info_.resolution;
-				ROS_ERROR("angolo arrivo = %.2f",(prova.z)*M_PI/4);
-				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,(prova.z)*M_PI/4);
+				tf::Quaternion Q = tf::createQuaternionFromRPY(0,0,atan2(frontier[idx].y-current_point.y,frontier[idx].x-current_point.x));
 				tf::quaternionTFToMsg(Q,goal_pose.pose.orientation);
 				target_pub_.publish(goal_pose);
 			}
@@ -476,7 +482,7 @@ class OccupancyGridPlanner {
 
 
     public:
-        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), start(true) {
+        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), first_target(true) {
             nh_.param("base_frame",base_link_,std::string("/body"));
             nh_.param("debug",debug,false);
             nh_.param("radius",radius,0.3);
@@ -486,7 +492,7 @@ class OccupancyGridPlanner {
             reached_sub_= nh_.subscribe("goal_reached",1,&OccupancyGridPlanner::reached_callback,this);
             path_pub_ = nh_.advertise<nav_msgs::Path>("path",1,true);
             target_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("goal",1);
-            reached_pub_ = nh_.advertise<std_msgs::Bool>("goal_reached",1);
+            reached_pub_ = nh_.advertise<std_msgs::Header>("goal_reached",1);
         }
 };
 

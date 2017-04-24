@@ -25,20 +25,22 @@
     <param name="neighbourhood" value="8"/>
     <param name="base_frame" value="/base_link"/>
     <param name="debug" value="False"/>
+    <param name="battery_threeshold" value="20"/>
     <remap from="/wifi_mapper/occ_grid" to="/costmap/costmap/costmap"/>
     <remap from="/wifi_mapper/goal" to="/move_base_simple/goal"/>
     <remap from="/wifi_mapper/signal" to="/wpa_cli/scan"/>
     <remap from="/wifi_mapper/goal_reached" to="/path_follower/goal_reached"/>
+    <remap from="/wifi_mapper/battery_charge" to="/laptop_charge"/>
   </node>
   
-  <node pkg="occgrid_planner_base" type="path_optimizer_b" name="path_optimizer" output="screen">
+  <node pkg="wifi_scanner" type="path_optimizer_wifi" name="path_optimizer" output="screen">
       <param name="max_acceleration" value="0.3"/> 
       <param name="max_braking" value="0.1"/> 
       <param name="velocity" value="0.1"/> 
       <remap from="/path_optimizer/path" to="/wifi_mapper/path"/>
   </node>
 
-  <node pkg="occgrid_planner_base" type="path_follower_b" name="path_follower" output="screen">
+  <node pkg="wifi_scanner" type="path_follower_wifi" name="path_follower" output="screen">
       <param name="Kx" value="1.0"/>
       <param name="Ky" value="1.0"/>
       <param name="Ktheta" value="1.0"/>
