@@ -14,8 +14,8 @@
         <param name="costmap/resolution" value="0.05"/>
         <param name="transform_tolerance" value="0.5"/>
         <param name="costmap/publish_voxel_grid" value="true"/>
-        <param name="costmap/origin_x" value="-40"/>
-        <param name="costmap/origin_y" value="-10"/>
+        <param name="costmap/origin_x" value="-10"/>
+        <param name="costmap/origin_y" value="-30"/>
         <param name="costmap/unknown_cost_value" value="-1"/>
         <param name="costmap/track_unknown_space" value="true"/>
 		<param name="costmap/robot_radius" value="0.05"/>

@@ -15,6 +15,7 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/String.h>
 #include <wpa_cli/Scan.h>
 #include <wpa_cli/Network.h>
 #include <smart_battery_msgs/SmartBatteryStatus.h>
@@ -25,7 +26,7 @@
 #define FREE 0xFF
 #define UNKNOWN 0x80
 #define OCCUPIED 0x00
-#define WIN_WSIZE 1000
+#define WIN_WSIZE 800
 #define WIN_HSIZE 700
 
 
@@ -37,27 +38,37 @@ class OccupancyGridPlanner {
         ros::Subscriber signal_sub_;
         ros::Subscriber reached_sub_;
         ros::Subscriber battery_sub_;
+        ros::Subscriber mux_sel_sub_;
         ros::Publisher path_pub_;
         ros::Publisher target_pub_;
         ros::Publisher reached_pub_;
+        //ros::Publisher mux_pub_;
+        ros::Publisher undocker_pub_;
         tf::TransformListener listener_;
 
         cv::Rect roi_;
         cv::Mat_<uint8_t> og_, tg_, fg_;
         cv::Mat_<cv::Vec3b> og_rgb_, tg_rgb_, fg_rgb_, cropped_og_, cropped_tg_, cropped_fg_;
-        cv::Point3i og_center_, target_ext, start_ext, current_point;
+        cv::Point3i og_center_, target_ext, start_ext, current_point, origin;
 
         nav_msgs::MapMetaData info_;
         std::string frame_id_;
         std::string base_link_;
         std::vector<cv::Point3i> frontier;  
-        bool ready, debug, first_run, first_target;
+        bool ready, debug, first_run, first_target, docking;
         double radius, current_yaw;  
-        int min_signal, max_signal, battery_charge, battery_threeshold; 
+        int min_signal, max_signal, battery_charge, battery_threshold_high, battery_threshold_low; 
         std_msgs::Header reached;
+        std_msgs::String mux_sel;
+        std::string mux_selected;
 
         typedef std::multimap<float, cv::Point3i> Heap;
-
+		
+		// Callback for Mux Selected
+        void mux_selected_callback(const std_msgs::StringConstPtr & msg) {
+			mux_selected= msg->data;
+			}
+		
         // Callback for Occupancy Grids
         void og_callback(const nav_msgs::OccupancyGridConstPtr & msg) {
             info_ = msg->info;
@@ -67,6 +78,7 @@ class OccupancyGridPlanner {
             og_center_ = cv::Point3i(-info_.origin.position.x/info_.resolution,
                     -info_.origin.position.y/info_.resolution,0);
             ROS_INFO("Og_size (%i, %i)", msg->info.height, msg->info.width);
+
 			if (first_run){
 				tg_ = cv::Mat_<uint8_t>(og_.size(), 0x40);
 				fg_ = cv::Mat_<uint8_t>(og_.size(), 0xFF);
@@ -80,7 +92,7 @@ class OccupancyGridPlanner {
             for (unsigned int j=0;j<msg->info.height;j++) {
                 for (unsigned int i=0;i<msg->info.width;i++) {
                     int8_t v = msg->data[j*msg->info.width + i];
-                    if(v>95 && v<=100){
+                    if(v>90 && v<=100){
 						og_(j,i) = OCCUPIED;
 					} else {
 						og_(j,i) = FREE; 
@@ -96,7 +108,7 @@ class OccupancyGridPlanner {
                 }
             }
             // Apply the dilation on obstacles (= erosion of black cells)
-			double dilation_size =radius/info_.resolution;
+			double dilation_size =1.1*radius/info_.resolution;
 			cv::Mat element = getStructuringElement( cv::MORPH_RECT,
 								   cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
 								   cv::Point( dilation_size, dilation_size ) );
@@ -104,6 +116,7 @@ class OccupancyGridPlanner {
 			
             if (!ready) {
                 ready = true;
+                origin = current_position;
                 ROS_INFO("Received occupancy grid, ready to plan");
             }
 			
@@ -144,6 +157,11 @@ class OccupancyGridPlanner {
                 ROS_WARN("Ignoring target while the occupancy grid has not been received");
                 return;
             }
+            
+            if (!docking) {
+                ROS_INFO("Auto Docking is running");
+                return;
+            }
             ROS_INFO("Received planning request");
             // Convert the destination point in the occupancy grid frame. 
             // The debug case is useful if the map is published without
@@ -164,17 +182,11 @@ class OccupancyGridPlanner {
 					+ og_center_;
             target_ext=target;  
             
-            if(battery_charge<=battery_threeshold){
-				target= cv::Point3i(0, 0, 0)
-					+ og_center_;
-				target_ext=target;  
-			}  
-                
-            ROS_INFO("Planning target: %.2f %.2f %.2f -> %d %d %d",
-                        pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
-            
+			//ROS_INFO("Planning target: %.2f %.2f %.2f -> %d %d %d",
+			//		pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
+			
             if (!isInGrid(target)) {
-                ROS_INFO("Planning target ourside the grid: %.2f %.2f %.2f -> %d %d %d",
+                ROS_INFO("Planning target outside the grid: %.2f %.2f %.2f -> %d %d %d",
                         pose.pose.position.x, pose.pose.position.y, t_yaw, target.x, target.y, target.z);
                 return;
             }
@@ -196,8 +208,8 @@ class OccupancyGridPlanner {
             }
             start_ext=start;
             
-            ROS_INFO("Planning origin %.2f %.2f %.2f -> %d %d %d",
-                    transform.getOrigin().x(), transform.getOrigin().y(), s_yaw, start.x, start.y, start.z);
+            //ROS_INFO("Planning origin %.2f %.2f %.2f -> %d %d %d",
+            //        transform.getOrigin().x(), transform.getOrigin().y(), s_yaw, start.x, start.y, start.z);
             if (!isInGrid(start)) {
                ROS_INFO("Planning origin outside the grid %.2f %.2f %.2f -> %d %d %d",
                     transform.getOrigin().x(), transform.getOrigin().y(), s_yaw, start.x, start.y, start.z);
@@ -214,7 +226,30 @@ class OccupancyGridPlanner {
 				}
                 return;
             }
-            ROS_INFO("Starting planning from (%d, %d, %d) to (%d, %d, %d)",start.x,start.y,start.z, target.x, target.y, target.z);
+            
+            if(battery_charge<=battery_threshold_low){
+				    target=starting_point;
+				    target_ext=target;
+				if(hypot(start.x-target.x, start.y-target.y)<=10){
+					ROS_ERROR("Auto docking");
+					docking=false;
+					first_target=true;
+					
+					nav_msgs::Path void_path;
+					path_pub_.publish(void_path);
+					
+					std::system("rosnode kill /obstacle_avoidance&");
+					ros::Duration(1.0).sleep();
+					std:system("roslaunch kobuki_auto_docking activate.launch");
+					ros::Duration(1.0).sleep();
+					return;
+				} else {
+					ROS_ERROR("Coming home : from (%d, %d, %d) to (%d, %d, %d)",start.x,start.y,start.z, target.x, target.y, target.z);
+				}
+			} else {
+				ROS_INFO("Starting planning from (%d, %d, %d) to (%d, %d, %d)",start.x,start.y,start.z, target.x, target.y, target.z);
+			}
+			
             // Here the Dijskstra algorithm starts 
             // The best distance to the goal computed so far. This is
             // initialised with Not-A-Number. 
@@ -241,8 +276,8 @@ class OccupancyGridPlanner {
 				
             // Cost of displacement corresponding the neighbours. Diagonal
             // moves are 44% longer.
-			float cost[2][5] = {{      1, 2*sqrt(2), 2, 10, 10},
-							    {sqrt(2), 		  2, 2, 10, 10}};
+			float cost[2][5] = {{      1, 2*sqrt(2), 2, 100, 100},
+							    {sqrt(2), 		  2, 2, 100, 100}};
             
             
             // The core of Dijkstra's Algorithm, a sorted heap, where the first
@@ -367,8 +402,8 @@ class OccupancyGridPlanner {
 				float signalf=(signal+104.0)/64.0;								
 				float max_signalf=(max_signal+104.0)/64.0;	
 				float min_signalf=(min_signal+104.0)/64.0;	
-				ROS_INFO("Signal = %i (%.2f)",signal,signalf);
-				ROS_INFO("Max_Signal, Min_Signal = (%i = %.2f, %.i = %.2f)",max_signal, max_signalf, min_signal, min_signalf);
+				//ROS_INFO("Signal = %i (%.2f)",signal,signalf);
+				//ROS_INFO("Max_Signal, Min_Signal = (%i = %.2f, %.i = %.2f)",max_signal, max_signalf, min_signal, min_signalf);
 
 				double r;
 				uint8_t intensity;
@@ -377,7 +412,7 @@ class OccupancyGridPlanner {
 						intensity=(uint8_t)(signalf*FREE);
 						cv::Point3i radius_point=cv::Point3i(i,j,0);
 						 r = hypot(radius_point.x,radius_point.y);
-						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=7) {
+						if(intensity > tg_(point3iToPoint(current_point+radius_point)) && r<=10) {
 							tg_(point3iToPoint(current_point+radius_point))= intensity;
 						}
 					} 
@@ -455,8 +490,44 @@ class OccupancyGridPlanner {
 					//cv::imshow( "TreasureGrid", tg_rgb_ );
 					cv::imshow( "FrontierGrid", fg_rgb_ );
 				}
-				if(first_target) {
+				if(first_target && battery_charge>=battery_threshold_high && mux_selected=="/mux/autoCommand") {
+					
+					ROS_ERROR("Undocking");
+					geometry_msgs::Twist velocity;
+
+					ros::Rate rate(10);
+					ros::Time start(ros::Time::now());
+					while (ros::ok()) {
+						if ((ros::Time::now() - start).toSec() > 2.0) {
+							break;
+						}
+						velocity.linear.x = -0.3;
+						undocker_pub_.publish(velocity);
+						rate.sleep();
+					}
+					
+					velocity.linear.x = 0.0;
+					undocker_pub_.publish(velocity);
+					ros::Duration(1).sleep();
+					
+					start = ros::Time::now();
+					while (ros::ok()) {
+						if ((ros::Time::now() - start).toSec() > 5.5) {
+							break;
+						}
+						
+						velocity.angular.z = 1.0;
+						undocker_pub_.publish(velocity);
+						rate.sleep();
+					}
+					velocity.angular.z = 0.0;
+					undocker_pub_.publish(velocity);
+					
+					ros::Duration(3).sleep();	
+					
+					ROS_INFO("First target given");
 					first_target=false;
+					docking=true;
 					reached.stamp = ros::Time::now();
                     reached.frame_id = frame_id_;
 					reached_pub_.publish(reached);
@@ -468,7 +539,6 @@ class OccupancyGridPlanner {
 		// Callback for Exploration
 		void reached_callback(const std_msgs::Header & msg) {
 			if(!first_run){	
-				ROS_ERROR("Reached callback called!");			
 				geometry_msgs::PoseStamped goal_pose;	
 				goal_pose.header.stamp = ros::Time::now();
 				goal_pose.header.frame_id = frame_id_;
@@ -491,7 +561,7 @@ class OccupancyGridPlanner {
 					dtheta=fabs(current_yaw-atan2(frontier[i].y-current_point.y,frontier[i].x-current_point.x));
 					
 					curr_scr=0.01*dpos*dpos+10000.0*dtheta;
-					if(dpos>3.0 && curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 && 
+					if(dpos>4*radius && curr_scr<best_scr && og_rgb_(frontier[i].y,frontier[i].x).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x+2).val[0]!=0x00 && 
 					   og_rgb_(frontier[i].y-2,frontier[i].x+2).val[0]!=0x00 && og_rgb_(frontier[i].y+2,frontier[i].x-2).val[0]!=0x00 && og_rgb_(frontier[i].y-2,frontier[i].x-2).val[0]!=0x00){
 						
 						best_scr=curr_scr;
@@ -508,34 +578,40 @@ class OccupancyGridPlanner {
 					tf::quaternionTFToMsg(Q,goal_pose.pose.orientation);
 					target_pub_.publish(goal_pose);
 				} else {
-					ROS_ERROR("BEST NOT FOUND!");
+					ROS_ERROR("BEST NOT FOUND! %lu", frontier.size());
+					reached.stamp = ros::Time::now();
+                    reached.frame_id = frame_id_;
+					reached_pub_.publish(reached);
+					
 				}
 			}
-			
-			
 		}
 		
 		// Callback for Battery Management
 		void battery_callback(const smart_battery_msgs::SmartBatteryStatusConstPtr & msg) {
 			battery_charge= msg->percentage;
-			ROS_INFO("Battery Level is %i percent", battery_charge);
+			//ROS_INFO("Battery Level is %i percent", battery_charge);
 		}
 
 
     public:
-        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), first_target(true), min_signal(0), max_signal(-100) , battery_charge(100){
+        OccupancyGridPlanner() : nh_("~"), ready(false), first_run(true), first_target(true), min_signal(0), max_signal(-100) , battery_charge(100), docking(true), mux_selected(""){
             nh_.param("base_frame",base_link_,std::string("/base_link"));
             nh_.param("debug",debug,false);
             nh_.param("radius",radius,0.25);
-            nh_.param("battery_threeshold",battery_threeshold,20);
+            nh_.param("battery_threshold_high",battery_threshold_high,90);
+            nh_.param("battery_threshold_low",battery_threshold_low,20);
             og_sub_ = nh_.subscribe("occ_grid",1,&OccupancyGridPlanner::og_callback,this);
             target_sub_ = nh_.subscribe("goal",1,&OccupancyGridPlanner::target_callback,this);
             signal_sub_ = nh_.subscribe("signal",1,&OccupancyGridPlanner::tg_callback,this);
             reached_sub_= nh_.subscribe("goal_reached",1,&OccupancyGridPlanner::reached_callback,this);
             battery_sub_= nh_.subscribe("battery_charge",1,&OccupancyGridPlanner::battery_callback,this);
+            mux_sel_sub_= nh_.subscribe("/mux/selected",1,&OccupancyGridPlanner::mux_selected_callback,this);
             path_pub_ = nh_.advertise<nav_msgs::Path>("path",1,true);
             target_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("goal",1);
             reached_pub_ = nh_.advertise<std_msgs::Header>("goal_reached",1);
+            //mux_pub_ = nh_.advertise<std_msgs::String>("/mux/selected",1);
+            undocker_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel_mux/input/teleop",1);
         }
 };
 

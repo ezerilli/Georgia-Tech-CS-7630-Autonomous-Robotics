@@ -144,7 +144,7 @@ class BubbleSLAM:
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             now = rospy.Time.now()
-            lasttf = now #rospy.Time(0)
+            lasttf = now  #rospy.Time(0) 
             self.listener.waitForTransform(self.odom_frame,self.body_frame, now, rospy.Duration(1.0))
             (trans,rot) = self.listener.lookupTransform(self.odom_frame,self.body_frame, lasttf)
             new_odom = mat(self.listener.fromTranslationRotation(trans,rot))

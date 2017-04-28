@@ -137,10 +137,6 @@ class PathFollower {
                         traj_.clear();
                         twist.linear.x = 0.0;
                         twist.angular.z = 0.0;
-                        //ros::Duration(0.5).sleep();
-                        //ros::Rate poll_rate(100);
-						//while(reached_pub_.getNumSubscribers() == 0)
-						//	poll_rate.sleep();
 												
                         reached.stamp = ros::Time::now();
                         reached.frame_id = frame_id_;

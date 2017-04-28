@@ -6,11 +6,26 @@
   <include file="$(find tb_slam)/launch/costmap.launch"/>
   <include file="$(find wpa_cli)/launch/wpa_cli.launch"/>
   <include file="$(find wifi_scanner)/launch/planner.launch"/>
+  <include file="$(find kobuki)/launch/velocity_smoother.launch"/>
+<!--  <include file="$(find kobuki_auto_docking)/launch/minimal.launch"/> -->
+
+<!--
+  Basic auto-docking configuration for working with the default kobuki launcher (minimal.launch). 
+ -->
+  <node pkg="nodelet" type="nodelet" name="dock_drive" args="load kobuki_auto_docking/AutoDockingNodelet mobile_base_nodelet_manager">
+    <rosparam file="$(find kobuki_auto_docking)/param/auto_docking.yaml" command="load"/>
+    <remap from="dock_drive/odom" to="odom"/>
+    <remap from="dock_drive/core" to="mobile_base/sensors/core"/>
+    <remap from="dock_drive/dock_ir" to="mobile_base/sensors/dock_ir"/>
+    <remap from="dock_drive/motor_power" to="mobile_base/commands/motor_power"/>
+    <remap from="dock_drive/velocity" to="/cmd_vel_mux/input/teleop"/>
+    <!-- <remap from="dock_drive/velocity" to="mobile_base/commands/velocity"/> -->
+  </node>
 
  <!-- Teloperation node -->
   
   <node pkg="learning_joy" type="robot_teleop_joy" name="teleop">
-	  <param name="axis_linear" value="1" type="int"/>
+      <param name="axis_linear" value="1" type="int"/>
       <param name="axis_angular" value="0" type="int"/>
       <param name="scale_linear" value="0.3" type="double"/>
       <param name="scale_angular" value="1" type="double"/>
@@ -27,19 +42,9 @@
   </node>
   
     <node pkg="topic_tools" type="mux" name="cmd_mux" 
-      args="/cmd_vel /teleop/twistCommand /mux/autoCommand">
-  </node>
+      args="/obstacle_avoidance/command_velocity /teleop/twistCommand /mux/autoCommand /mux/docking">
+  </node> 
   
-   <!-- Collision avoidance node -->
-  <node pkg="collision_avoidance" type="collision_avoidance" name="coll_avoid" output="screen">
-      <param name="radius_max" value="1.2"/>
-      <param name="radius_min" value="0.50"/>
-      <param name="alpha_max" value="20.0"/>
-      <remap from="~scans" to="/scanpc"/>
-      <remap from="~cmd_vel" to="/cmd_vel"/>
-      <remap from="~output_vel" to="/cmd_vel_mux/input/navi"/>
-  </node>
- 
 
 <!-- Laserscan node -->
   <node pkg="laserscan_to_pc2" type="laserscan_to_pc2" name="lstopc2" output="screen">
@@ -48,5 +53,7 @@
       <remap from="~laser" to="/scan"/>
       <remap from="~scan" to="/scanpc"/>
   </node>
-      
+  
+  <node pkg="nodelet" type="nodelet" name="nodelet_manager" output="screen" respawn="true" args="manager"/>
+
 </launch>
